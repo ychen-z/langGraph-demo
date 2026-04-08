@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LangGraph 从零开始 - 完整教程</title>
+<style>
+  /* ============ 全局重置 & 变量 ============ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-dark: #0f0f1a;
+    --bg-card: #1a1a2e;
+    --accent-blue: #4fc3f7;
+    --accent-purple: #b388ff;
+    --accent-green: #69f0ae;
+    --accent-orange: #ffab40;
+    --accent-pink: #f48fb1;
+    --accent-cyan: #00e5ff;
+    --accent-yellow: #ffd740;
+    --text-primary: #e8eaf6;
+    --text-secondary: #9fa8da;
+    --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --gradient-4: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --gradient-5: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    --gradient-6: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+    --gradient-7: linear-gradient(135deg, #fccb90 0%, #d57eeb 100%);
+    --gradient-8: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  html, body {
+    height: 100%; width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============ 幻灯片容器 ============ */
+  .deck { position: relative; width: 100%; height: 100%; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 60px 80px;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+    overflow-y: auto;
+  }
+  .slide.active {
+    opacity: 1; transform: translateX(0);
+    pointer-events: auto;
+  }
+  .slide.prev {
+    opacity: 0; transform: translateX(-60px);
+  }
+
+  /* ============ 封面 ============ */
+  .cover { text-align: center; }
+  .cover .logo {
+    width: 120px; height: 120px;
+    background: var(--gradient-3);
+    border-radius: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 52px; margin: 0 auto 40px;
+    box-shadow: 0 20px 60px rgba(79,195,247,0.3);
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+  .cover h1 {
+    font-size: 56px; font-weight: 800;
+    background: var(--gradient-3);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.3; margin-bottom: 16px;
+  }
+  .cover .subtitle {
+    font-size: 22px; color: var(--text-secondary);
+    margin-bottom: 48px; letter-spacing: 1px;
+  }
+  .cover .tag-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .tag {
+    padding: 8px 20px; border-radius: 20px; font-size: 14px; font-weight: 600;
+    background: rgba(79,195,247,0.12); color: var(--accent-blue);
+    border: 1px solid rgba(79,195,247,0.25);
+  }
+
+  /* ============ 课程幻灯片 ============ */
+  .lesson-slide { align-items: flex-start; gap: 0; padding: 50px 80px; }
+
+  .lesson-header {
+    display: flex; align-items: center; gap: 20px;
+    margin-bottom: 36px; width: 100%;
+  }
+  .lesson-num {
+    width: 56px; height: 56px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 800; color: #fff;
+    flex-shrink: 0;
+  }
+  .lesson-header h2 {
+    font-size: 36px; font-weight: 700; line-height: 1.2;
+  }
+
+  .lesson-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px; width: 100%; flex: 1;
+    align-content: start;
+  }
+  .lesson-body.single-col { grid-template-columns: 1fr; }
+
+  /* 卡片 */
+  .card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 28px 28px;
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  }
+  .card h3 {
+    font-size: 18px; font-weight: 700; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card h3 .icon { font-size: 22px; }
+  .card p, .card li {
+    font-size: 15px; line-height: 1.75;
+    color: var(--text-secondary);
+  }
+  .card ul { padding-left: 18px; }
+  .card li { margin-bottom: 6px; }
+  .card.full-width { grid-column: 1 / -1; }
+
+  /* 流程图 */
+  .flow-diagram {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; flex-wrap: wrap; padding: 20px 0;
+  }
+  .flow-node {
+    padding: 12px 22px; border-radius: 12px;
+    font-size: 14px; font-weight: 700; color: #fff;
+    white-space: nowrap;
+    animation: fadeInUp 0.5s ease both;
+  }
+  .flow-arrow {
+    font-size: 22px; color: var(--text-secondary);
+    margin: 0 6px;
+    animation: fadeInUp 0.5s ease both;
+  }
+  .flow-node:nth-child(1) { animation-delay: 0.1s; }
+  .flow-node:nth-child(3) { animation-delay: 0.2s; }
+  .flow-node:nth-child(5) { animation-delay: 0.3s; }
+  .flow-node:nth-child(7) { animation-delay: 0.4s; }
+  .flow-node:nth-child(9) { animation-delay: 0.5s; }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 代码块 */
+  .code-block {
+    background: #0d1117; border-radius: 12px;
+    padding: 20px 24px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13.5px; line-height: 1.7;
+    color: #c9d1d9; overflow-x: auto;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .code-block .kw { color: #ff7b72; }
+  .code-block .fn { color: #d2a8ff; }
+  .code-block .str { color: #a5d6ff; }
+  .code-block .cmt { color: #8b949e; }
+  .code-block .type { color: #79c0ff; }
+
+  /* 表格 */
+  .concept-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 15px;
+  }
+  .concept-table th {
+    text-align: left; padding: 12px 16px;
+    background: rgba(79,195,247,0.08);
+    color: var(--accent-blue); font-weight: 700;
+    border-bottom: 2px solid rgba(79,195,247,0.2);
+  }
+  .concept-table td {
+    padding: 12px 16px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .concept-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* 高亮色彩文字 */
+  .hl-blue { color: var(--accent-blue); font-weight: 600; }
+  .hl-purple { color: var(--accent-purple); font-weight: 600; }
+  .hl-green { color: var(--accent-green); font-weight: 600; }
+  .hl-orange { color: var(--accent-orange); font-weight: 600; }
+  .hl-pink { color: var(--accent-pink); font-weight: 600; }
+  .hl-cyan { color: var(--accent-cyan); font-weight: 600; }
+  .hl-yellow { color: var(--accent-yellow); font-weight: 600; }
+
+  /* 分支图 */
+  .branch-diagram {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 16px 0;
+  }
+  .branch-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .branch-box {
+    padding: 10px 18px; border-radius: 10px;
+    font-size: 13px; font-weight: 700; color: #fff;
+    text-align: center; min-width: 80px;
+  }
+  .branch-line {
+    font-size: 18px; color: var(--text-secondary);
+  }
+
+  /* ============ 导航 ============ */
+  .nav-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 64px; background: rgba(15,15,26,0.92);
+    backdrop-filter: blur(20px);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    z-index: 100;
+  }
+  .nav-btn {
+    background: rgba(79,195,247,0.1);
+    border: 1px solid rgba(79,195,247,0.2);
+    color: var(--accent-blue);
+    padding: 10px 24px; border-radius: 10px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .nav-btn:hover {
+    background: rgba(79,195,247,0.2);
+    transform: translateY(-1px);
+  }
+  .nav-btn:disabled {
+    opacity: 0.3; cursor: default;
+    transform: none;
+  }
+  .nav-progress {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .nav-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+  .nav-dot.active {
+    background: var(--accent-blue);
+    box-shadow: 0 0 12px rgba(79,195,247,0.5);
+    width: 28px; border-radius: 5px;
+  }
+  .page-num {
+    color: var(--text-secondary);
+    font-size: 14px; font-weight: 600;
+    min-width: 80px; text-align: center;
+  }
+
+  /* ============ 背景装饰 ============ */
+  .bg-decoration {
+    position: fixed; inset: 0; z-index: -1; overflow: hidden;
+    pointer-events: none;
+  }
+  .bg-orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(80px); opacity: 0.08;
+  }
+  .bg-orb-1 { width: 600px; height: 600px; background: #667eea; top: -200px; right: -200px; }
+  .bg-orb-2 { width: 500px; height: 500px; background: #f093fb; bottom: -200px; left: -200px; }
+  .bg-orb-3 { width: 400px; height: 400px; background: #00f2fe; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+
+  /* ============ 循环图 ============ */
+  .loop-diagram {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 12px 0; font-size: 13px; font-weight: 600;
+  }
+  .loop-row { display: flex; align-items: center; gap: 8px; }
+  .loop-box {
+    padding: 10px 18px; border-radius: 10px; color: #fff;
+    text-align: center; min-width: 90px;
+  }
+  .loop-arrow { color: var(--text-secondary); font-size: 18px; }
+  .loop-label { color: var(--text-secondary); font-size: 12px; font-style: italic; }
+
+  /* ============ 总结页 ============ */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 16px; width: 100%;
+  }
+  .summary-card {
+    background: var(--bg-card);
+    border-radius: 16px; padding: 24px;
+    border: 1px solid rgba(255,255,255,0.06);
+    text-align: center;
+    transition: transform 0.25s;
+  }
+  .summary-card:hover { transform: translateY(-6px); }
+  .summary-icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; margin: 0 auto 14px;
+  }
+  .summary-card h4 { font-size: 15px; margin-bottom: 8px; }
+  .summary-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+  /* ============ 响应式 ============ */
+  @media (max-width: 900px) {
+    .slide { padding: 40px 28px; }
+    .lesson-slide { padding: 36px 28px; }
+    .lesson-body { grid-template-columns: 1fr; }
+    .cover h1 { font-size: 36px; }
+    .lesson-header h2 { font-size: 26px; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .nav-bar { padding: 0 16px; }
+  }
+
+  /* 键盘提示 */
+  .kbd-hint {
+    position: fixed; top: 20px; right: 20px;
+    font-size: 12px; color: var(--text-secondary);
+    opacity: 0.5; z-index: 100;
+  }
+  kbd {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 2px 8px; border-radius: 4px;
+    font-family: inherit; font-size: 11px;
+  }
+</style>
+</head>
+<body>
+
+<!-- 背景装饰 -->
+<div class="bg-decoration">
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
+</div>
+
+<div class="kbd-hint"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> 翻页</div>
+
+<div class="deck" id="deck">
+
+  <!-- ==================== 封面 ==================== -->
+  <div class="slide cover active" data-index="0">
+    <div class="logo">🦜</div>
+    <h1>LangGraph 从零开始</h1>
+    <p class="subtitle">7 节课掌握 AI 智能体开发的核心技能</p>
+    <div class="tag-row">
+      <span class="tag">State 状态</span>
+      <span class="tag">Node 节点</span>
+      <span class="tag">Edge 边</span>
+      <span class="tag">Tool 工具</span>
+      <span class="tag">Memory 记忆</span>
+      <span class="tag">Agent 智能体</span>
+      <span class="tag">Multi-Agent 多智能体</span>
+    </div>
+  </div>
+
+  <!-- ==================== 课程总览 ==================== -->
+  <div class="slide" data-index="1" style="padding-top:40px;">
+    <div class="lesson-header" style="margin-bottom:28px;">
+      <h2 style="font-size:32px;">课程总览</h2>
+    </div>
+    <table class="concept-table" style="max-width: 900px;">
+      <thead>
+        <tr>
+          <th style="width:60px;">课程</th>
+          <th>主题</th>
+          <th style="width:120px;">需要 API Key</th>
+          <th style="width:80px;">难度</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="hl-blue">1</span></td><td>核心概念：State、Node、Edge、StateGraph</td><td>不需要</td><td>入门</td></tr>
+        <tr><td><span class="hl-purple">2</span></td><td>简单聊天机器人：接入 OpenAI GPT</td><td>需要</td><td>入门</td></tr>
+        <tr><td><span class="hl-green">3</span></td><td>条件边与分支逻辑</td><td>不需要</td><td>进阶</td></tr>
+        <tr><td><span class="hl-orange">4</span></td><td>工具调用 & ReAct 智能体</td><td>需要</td><td>进阶</td></tr>
+        <tr><td><span class="hl-pink">5</span></td><td>检查点与记忆（多轮对话）</td><td>需要</td><td>进阶</td></tr>
+        <tr><td><span class="hl-cyan">6</span></td><td>人机协作（Human-in-the-Loop）</td><td>需要</td><td>高级</td></tr>
+        <tr><td><span class="hl-yellow">7</span></td><td>多智能体协作</td><td>需要</td><td>高级</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top: 28px; text-align: center;">
+      <div class="flow-diagram">
+        <div class="flow-node" style="background:var(--gradient-1);">核心概念</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-node" style="background:var(--gradient-2);">聊天机器人</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-node" style="background:var(--gradient-4);">条件分支</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-node" style="background:var(--gradient-5);">工具调用</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-node" style="background:var(--gradient-6);">记忆</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-node" style="background:var(--gradient-7);">人机协作</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-node" style="background:var(--gradient-8);">多智能体</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 第一课 ==================== -->
+  <div class="slide lesson-slide" data-index="2">
+    <div class="lesson-header">
+      <div class="lesson-num" style="background:var(--gradient-1);">1</div>
+      <h2>核心概念</h2>
+    </div>
+    <div class="lesson-body">
+      <div class="card">
+        <h3><span class="icon">📋</span> <span class="hl-blue">State（状态）</span></h3>
+        <p>在图中流转的<strong>共享数据容器</strong>，就像一个所有节点都能读写的"共享记事本"。</p>
+        <div class="code-block" style="margin-top:12px;">
+<span class="kw">class</span> <span class="type">GreetingState</span>(<span class="type">TypedDict</span>):
+    name: <span class="type">str</span>       <span class="cmt"># 用户的名字</span>
+    greeting: <span class="type">str</span>   <span class="cmt"># 问候语</span></div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">⚙️</span> <span class="hl-purple">Node（节点）</span></h3>
+        <p>一个处理数据的 <strong>Python 函数</strong>，接收 State，返回要更新的字段。</p>
+        <div class="code-block" style="margin-top:12px;">
+<span class="kw">def</span> <span class="fn">greet</span>(state: GreetingState) -> <span class="type">dict</span>:
+    name = state[<span class="str">"name"</span>]
+    <span class="kw">return</span> {<span class="str">"greeting"</span>: <span class="str">f"你好，{name}！"</span>}</div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🔗</span> <span class="hl-green">Edge（边）</span></h3>
+        <p>节点之间的<strong>连接线</strong>，定义执行顺序。</p>
+        <div class="code-block" style="margin-top:12px;">
+graph.add_edge(<span class="type">START</span>, <span class="str">"greet"</span>)
+graph.add_edge(<span class="str">"greet"</span>, <span class="str">"add_emoji"</span>)
+graph.add_edge(<span class="str">"add_emoji"</span>, <span class="type">END</span>)</div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🗺️</span> 流程图</h3>
+        <div class="flow-diagram" style="margin-top:8px;">
+          <div class="flow-node" style="background:#546e7a;">START</div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-node" style="background:#5c6bc0;">greet</div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-node" style="background:#7e57c2;">add_emoji</div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-node" style="background:#546e7a;">END</div>
+        </div>
+        <p style="text-align:center; margin-top:8px; font-size:14px; color:var(--text-secondary);">
+          .compile() 编译 &rarr; .invoke() 运行
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 第二课 ==================== -->
+  <div class="slide lesson-slide" data-index="3">
+    <div class="lesson-header">
+      <div class="lesson-num" style="background:var(--gradient-2);">2</div>
+      <h2>简单聊天机器人</h2>
+    </div>
+    <div class="lesson-body">
+      <div class="card">
+        <h3><span class="icon">📝</span> <span class="hl-pink">Annotated —— 追加模式</span></h3>
+        <p>普通字段是<strong>覆盖</strong>模式，但聊天需要<strong>追加</strong>消息：</p>
+        <table class="concept-table" style="margin-top:12px;">
+          <tr><th>模式</th><th>行为</th><th>适用场景</th></tr>
+          <tr><td>普通字段</td><td>新值覆盖旧值</td><td>greeting, name</td></tr>
+          <tr><td>Annotated</td><td>新值追加到列表</td><td>messages（对话历史）</td></tr>
+        </table>
+        <div class="code-block" style="margin-top:12px;">
+<span class="kw">class</span> <span class="type">ChatState</span>(<span class="type">TypedDict</span>):
+    <span class="cmt"># 消息列表，使用追加模式（不会覆盖旧消息）</span>
+    messages: <span class="type">Annotated</span>[<span class="type">list</span>, add_messages]</div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🤖</span> <span class="hl-purple">ChatOpenAI</span></h3>
+        <p>LangChain 对 OpenAI 的封装，处理 API 调用细节。</p>
+        <div class="code-block" style="margin-top:12px;">
+<span class="cmt"># 创建 LLM 实例</span>
+llm = <span class="fn">ChatOpenAI</span>(
+    model=<span class="str">"gpt-4o-mini"</span>,  <span class="cmt"># 快速便宜</span>
+    temperature=<span class="str">0.7</span>,       <span class="cmt"># 创造性</span>
+)
+
+<span class="cmt"># 节点函数</span>
+<span class="kw">def</span> <span class="fn">chatbot</span>(state):
+    response = llm.invoke(state[<span class="str">"messages"</span>])
+    <span class="kw">return</span> {<span class="str">"messages"</span>: [response]}</div>
+      </div>
+      <div class="card full-width">
+        <h3><span class="icon">💬</span> 消息类型</h3>
+        <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:8px;">
+          <div style="flex:1; min-width:200px;">
+            <p><span class="hl-green">HumanMessage</span> — 用户发的消息</p>
+            <p><span class="hl-blue">AIMessage</span> — AI 的回复</p>
+            <p><span class="hl-orange">ToolMessage</span> — 工具执行结果（第四课学）</p>
+          </div>
+          <div style="flex:1; min-width:200px;">
+            <p style="color:var(--text-secondary); font-size: 14px; line-height: 1.8;">
+              LLM 通过消息类型区分"谁说了什么"<br>
+              消息越多 = 上下文越丰富（也越费钱）<br>
+              对话历史是 LLM "记忆"的来源
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 第三课 ==================== -->
+  <div class="slide lesson-slide" data-index="4">
+    <div class="lesson-header">
+      <div class="lesson-num" style="background:var(--gradient-4);">3</div>
+      <h2>条件边与分支逻辑</h2>
+    </div>
+    <div class="lesson-body">
+      <div class="card">
+        <h3><span class="icon">🔀</span> <span class="hl-green">条件边 vs 普通边</span></h3>
+        <table class="concept-table" style="margin-top:8px;">
+          <tr><th>类型</th><th>目标</th><th>方法</th></tr>
+          <tr><td>普通边</td><td>固定的下一个节点</td><td>add_edge(A, B)</td></tr>
+          <tr><td>条件边</td><td>由路由函数动态决定</td><td>add_conditional_edges(A, fn)</td></tr>
+        </table>
+        <div class="code-block" style="margin-top:14px;">
+<span class="cmt"># 路由函数：返回下一个节点的名称</span>
+<span class="kw">def</span> <span class="fn">route_to_department</span>(state) -> <span class="type">str</span>:
+    <span class="kw">if</span> state[<span class="str">"category"</span>] == <span class="str">"technical"</span>:
+        <span class="kw">return</span> <span class="str">"technical_support"</span>
+    <span class="kw">elif</span> state[<span class="str">"category"</span>] == <span class="str">"billing"</span>:
+        <span class="kw">return</span> <span class="str">"billing_support"</span>
+    <span class="kw">return</span> <span class="str">"general_support"</span></div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🗺️</span> 分支流程图</h3>
+        <div class="branch-diagram">
+          <div class="branch-row">
+            <div class="branch-box" style="background:#546e7a;">起点</div>
+            <span class="branch-line">&rarr;</span>
+            <div class="branch-box" style="background:#5c6bc0;">分类</div>
+            <span class="branch-line">&rarr;</span>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div class="branch-box" style="background:#e53935;">🔧 技术支持</div>
+              <div class="branch-box" style="background:#fb8c00;">💰 账单支持</div>
+              <div class="branch-box" style="background:#43a047;">📋 通用支持</div>
+            </div>
+            <span class="branch-line">&rarr;</span>
+            <div class="branch-box" style="background:#546e7a;">终点</div>
+          </div>
+        </div>
+        <p style="text-align:center; margin-top:10px; color:var(--text-secondary); font-size:14px;">
+          路由函数根据 state["category"] 动态决定走哪条路
+        </p>
+      </div>
+      <div class="card full-width">
+        <h3><span class="icon">💡</span> 适用场景</h3>
+        <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:12px; margin-top:8px;">
+          <div style="text-align:center;padding:12px;background:rgba(79,195,247,0.06);border-radius:10px;">
+            <div style="font-size:28px;margin-bottom:6px;">🔄</div>
+            <p style="font-size:13px;color:var(--text-secondary);">路由到不同处理器</p>
+          </div>
+          <div style="text-align:center;padding:12px;background:rgba(179,136,255,0.06);border-radius:10px;">
+            <div style="font-size:28px;margin-bottom:6px;">🛠️</div>
+            <p style="font-size:13px;color:var(--text-secondary);">决定是否用工具</p>
+          </div>
+          <div style="text-align:center;padding:12px;background:rgba(105,240,174,0.06);border-radius:10px;">
+            <div style="font-size:28px;margin-bottom:6px;">🔁</div>
+            <p style="font-size:13px;color:var(--text-secondary);">循环重试逻辑</p>
+          </div>
+          <div style="text-align:center;padding:12px;background:rgba(255,171,64,0.06);border-radius:10px;">
+            <div style="font-size:28px;margin-bottom:6px;">⚖️</div>
+            <p style="font-size:13px;color:var(--text-secondary);">任何 if/else 决策</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 第四课 ==================== -->
+  <div class="slide lesson-slide" data-index="5">
+    <div class="lesson-header">
+      <div class="lesson-num" style="background:var(--gradient-5);">4</div>
+      <h2>工具调用 & ReAct 智能体</h2>
+    </div>
+    <div class="lesson-body">
+      <div class="card">
+        <h3><span class="icon">🛠️</span> <span class="hl-orange">@tool 装饰器</span></h3>
+        <p>把普通函数变成 LLM 可调用的工具。</p>
+        <div class="code-block" style="margin-top:12px;">
+<span class="cmt"># LLM 通过 docstring 判断何时使用此工具</span>
+<span class="kw">@tool</span>
+<span class="kw">def</span> <span class="fn">add</span>(a: <span class="type">float</span>, b: <span class="type">float</span>) -> <span class="type">float</span>:
+    <span class="str">"""把两个数加在一起"""</span>
+    <span class="kw">return</span> a + b
+
+<span class="cmt"># 绑定工具给 LLM</span>
+llm_with_tools = llm.<span class="fn">bind_tools</span>([add, multiply])</div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🔄</span> <span class="hl-pink">智能体循环（Agentic Loop）</span></h3>
+        <div class="loop-diagram">
+          <div class="loop-row">
+            <div class="loop-box" style="background:#546e7a;">起点</div>
+            <span class="loop-arrow">&rarr;</span>
+            <div class="loop-box" style="background:#5c6bc0;">智能体<br><small>(LLM)</small></div>
+            <span class="loop-arrow">&rarr;</span>
+            <div class="loop-box" style="background:#e53935;">工具<br><small>(执行)</small></div>
+          </div>
+          <div class="loop-row" style="margin-top:4px;">
+            <span class="loop-label" style="margin-right: 60px;">↓ 不需要工具</span>
+            <span class="loop-label">↑ 循环回来</span>
+          </div>
+          <div class="loop-row">
+            <div class="loop-box" style="background:#546e7a;">终点</div>
+          </div>
+        </div>
+      </div>
+      <div class="card full-width">
+        <h3><span class="icon">📖</span> 执行过程示例</h3>
+        <div style="display:flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top:10px;">
+          <div style="flex:1; min-width: 200px;">
+            <p style="font-size:14px; line-height: 2; color:var(--text-secondary);">
+              <span class="hl-blue">第 1 轮：</span>"3+5=?" &rarr; LLM 说 "调用 add(3,5)" &rarr; 返回 8<br>
+              <span class="hl-purple">第 2 轮：</span>LLM 说 "调用 multiply(8,4)" &rarr; 返回 32<br>
+              <span class="hl-green">第 3 轮：</span>LLM 说 "答案是 32" &rarr; 到达终点
+            </p>
+          </div>
+          <div style="flex:1; min-width: 200px; text-align: center;">
+            <p style="font-size:18px; font-weight:700; margin-bottom: 6px; background: var(--gradient-5); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">这就是所有 AI Agent 的基础</p>
+            <p style="font-size:13px; color:var(--text-secondary);">ChatGPT 插件、Claude 工具调用、<br>所有能搜索/计算/操作的 AI 助手</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 第五课 ==================== -->
+  <div class="slide lesson-slide" data-index="6">
+    <div class="lesson-header">
+      <div class="lesson-num" style="background:var(--gradient-6);">5</div>
+      <h2>检查点与记忆</h2>
+    </div>
+    <div class="lesson-body">
+      <div class="card">
+        <h3><span class="icon">💾</span> <span class="hl-cyan">Checkpointer 检查点</span></h3>
+        <p>每步执行后自动保存状态，支持断点续传和多用户。</p>
+        <div class="code-block" style="margin-top:12px;">
+<span class="cmt"># 只需两行代码即可启用记忆！</span>
+memory = <span class="fn">MemorySaver</span>()
+graph = builder.<span class="fn">compile</span>(checkpointer=memory)</div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🧵</span> <span class="hl-purple">thread_id 线程隔离</span></h3>
+        <p>不同 thread_id 代表不同的对话，互不干扰。</p>
+        <div class="code-block" style="margin-top:12px;">
+<span class="cmt"># Alice 的对话</span>
+config_a = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"alice"</span>}}
+graph.<span class="fn">invoke</span>(msg, config=config_a)
+
+<span class="cmt"># Bob 的对话（完全隔离）</span>
+config_b = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"bob"</span>}}
+graph.<span class="fn">invoke</span>(msg, config=config_b)</div>
+      </div>
+      <div class="card full-width">
+        <h3><span class="icon">🏭</span> 生产环境持久化选择</h3>
+        <div style="display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-top:12px;">
+          <div style="text-align:center; padding:16px; background:rgba(255,171,64,0.06); border-radius:12px; border: 1px solid rgba(255,171,64,0.15);">
+            <div style="font-size:28px; margin-bottom:8px;">🧪</div>
+            <p style="font-weight:700; margin-bottom:4px; color:var(--accent-orange);">MemorySaver</p>
+            <p style="font-size:13px; color:var(--text-secondary);">存在内存中<br>仅限开发调试<br>重启即丢失</p>
+          </div>
+          <div style="text-align:center; padding:16px; background:rgba(79,195,247,0.06); border-radius:12px; border: 1px solid rgba(79,195,247,0.15);">
+            <div style="font-size:28px; margin-bottom:8px;">📁</div>
+            <p style="font-weight:700; margin-bottom:4px; color:var(--accent-blue);">SqliteSaver</p>
+            <p style="font-size:13px; color:var(--text-secondary);">存在 SQLite<br>单服务器部署<br>轻量持久化</p>
+          </div>
+          <div style="text-align:center; padding:16px; background:rgba(105,240,174,0.06); border-radius:12px; border: 1px solid rgba(105,240,174,0.15);">
+            <div style="font-size:28px; margin-bottom:8px;">🐘</div>
+            <p style="font-weight:700; margin-bottom:4px; color:var(--accent-green);">PostgresSaver</p>
+            <p style="font-size:13px; color:var(--text-secondary);">存在 PostgreSQL<br>多服务器部署<br>生产推荐</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 第六课 ==================== -->
+  <div class="slide lesson-slide" data-index="7">
+    <div class="lesson-header">
+      <div class="lesson-num" style="background:var(--gradient-7);">6</div>
+      <h2>人机协作 (Human-in-the-Loop)</h2>
+    </div>
+    <div class="lesson-body">
+      <div class="card">
+        <h3><span class="icon">⏸️</span> <span class="hl-yellow">interrupt_before —— 暂停机制</span></h3>
+        <p>在关键节点<strong>之前</strong>暂停，让人类审核后再继续。</p>
+        <div class="code-block" style="margin-top:12px;">
+graph = builder.<span class="fn">compile</span>(
+    checkpointer=memory,
+    interrupt_before=[<span class="str">"tools"</span>],  <span class="cmt"># 执行工具前暂停</span>
+)
+
+<span class="cmt"># 查看 AI 想做什么</span>
+state = graph.<span class="fn">get_state</span>(config)
+
+<span class="cmt"># 批准后恢复执行</span>
+graph.<span class="fn">invoke</span>(<span class="type">None</span>, config=config)</div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">✅</span> 审批流程</h3>
+        <div style="margin-top:10px;">
+          <div class="flow-diagram">
+            <div class="flow-node" style="background:#5c6bc0;">智能体</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node" style="background:#e53935;">⏸️ 暂停</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node" style="background:#43a047;">人类审核</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node" style="background:#fb8c00;">执行工具</div>
+          </div>
+        </div>
+        <div style="margin-top:16px; display:flex; gap:12px;">
+          <div style="flex:1; padding:12px; background:rgba(105,240,174,0.06); border-radius:10px; border-left: 3px solid var(--accent-green);">
+            <p style="font-size:14px;"><span class="hl-green">批准</span> &rarr; invoke(None) 继续执行</p>
+          </div>
+          <div style="flex:1; padding:12px; background:rgba(244,143,177,0.06); border-radius:10px; border-left: 3px solid var(--accent-pink);">
+            <p style="font-size:14px;"><span class="hl-pink">拒绝</span> &rarr; update_state() 注入拒绝消息</p>
+          </div>
+        </div>
+      </div>
+      <div class="card full-width">
+        <h3><span class="icon">🎯</span> 典型应用场景</h3>
+        <div style="display:flex; gap:20px; flex-wrap: wrap; margin-top:10px;">
+          <span class="tag" style="background:rgba(244,143,177,0.12);color:var(--accent-pink);border-color:rgba(244,143,177,0.25);">📧 发送邮件审批</span>
+          <span class="tag" style="background:rgba(105,240,174,0.12);color:var(--accent-green);border-color:rgba(105,240,174,0.25);">💳 付款确认</span>
+          <span class="tag" style="background:rgba(79,195,247,0.12);color:var(--accent-blue);border-color:rgba(79,195,247,0.25);">🗄️ 数据库写入审核</span>
+          <span class="tag" style="background:rgba(255,171,64,0.12);color:var(--accent-orange);border-color:rgba(255,171,64,0.25);">📄 内容发布审核</span>
+          <span class="tag" style="background:rgba(179,136,255,0.12);color:var(--accent-purple);border-color:rgba(179,136,255,0.25);">🔒 合规审计</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 第七课 ==================== -->
+  <div class="slide lesson-slide" data-index="8">
+    <div class="lesson-header">
+      <div class="lesson-num" style="background:var(--gradient-8);">7</div>
+      <h2>多智能体协作</h2>
+    </div>
+    <div class="lesson-body">
+      <div class="card">
+        <h3><span class="icon">👔</span> <span class="hl-blue">主管模式（Supervisor）</span></h3>
+        <p>一个"主管"节点统一调度，每个智能体完成任务后汇报。</p>
+        <div class="branch-diagram" style="margin-top:10px;">
+          <div class="branch-row">
+            <div class="branch-box" style="background:#546e7a;">起点</div>
+            <span class="branch-line">&rarr;</span>
+            <div class="branch-box" style="background:#5c6bc0; min-width:70px;">👔 主管</div>
+            <span class="branch-line">&rarr;</span>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <div class="branch-box" style="background:#0277bd; font-size:12px;">🔍 研究员</div>
+              <div class="branch-box" style="background:#00695c; font-size:12px;">✍️ 写手</div>
+              <div class="branch-box" style="background:#ad1457; font-size:12px;">📝 审核员</div>
+            </div>
+            <span class="branch-line">&rarr;</span>
+            <div class="branch-box" style="background:#546e7a;">终点</div>
+          </div>
+          <p style="font-size:12px;color:var(--text-secondary);margin-top:6px;">所有智能体完成后都回到主管，形成循环</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">📋</span> <span class="hl-purple">共享状态 = 协作白板</span></h3>
+        <div class="code-block" style="margin-top:10px; font-size:13px;">
+<span class="kw">class</span> <span class="type">TeamState</span>(<span class="type">TypedDict</span>):
+    messages: <span class="type">Annotated</span>[<span class="type">list</span>, add_messages]
+    task: <span class="type">str</span>        <span class="cmt"># 任务描述</span>
+    research: <span class="type">str</span>    <span class="cmt"># 研究员写入</span>
+    draft: <span class="type">str</span>       <span class="cmt"># 写手写入</span>
+    review: <span class="type">str</span>      <span class="cmt"># 审核员写入</span>
+    next_agent: <span class="type">str</span> <span class="cmt"># 主管决定</span></div>
+        <p style="margin-top:10px; font-size:14px; color:var(--text-secondary);">
+          研究员写 <span class="hl-blue">research</span> &rarr; 写手读它写 <span class="hl-green">draft</span> &rarr; 审核员审 draft 写 <span class="hl-pink">review</span>
+        </p>
+      </div>
+      <div class="card full-width">
+        <h3><span class="icon">🧩</span> 三种多智能体模式</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:12px;">
+          <div style="padding:16px;background:rgba(79,195,247,0.06);border-radius:12px;text-align:center;">
+            <p style="font-size:28px;margin-bottom:8px;">🏢</p>
+            <p style="font-weight:700;color:var(--accent-blue);margin-bottom:4px;">层级式</p>
+            <p style="font-size:13px;color:var(--text-secondary);">主管管理子主管<br>适合大型复杂系统</p>
+          </div>
+          <div style="padding:16px;background:rgba(179,136,255,0.06);border-radius:12px;text-align:center;">
+            <p style="font-size:28px;margin-bottom:8px;">🤝</p>
+            <p style="font-weight:700;color:var(--accent-purple);margin-bottom:4px;">对等式</p>
+            <p style="font-size:13px;color:var(--text-secondary);">智能体直接对话<br>适合协商场景</p>
+          </div>
+          <div style="padding:16px;background:rgba(105,240,174,0.06);border-radius:12px;text-align:center;">
+            <p style="font-size:28px;margin-bottom:8px;">➡️</p>
+            <p style="font-weight:700;color:var(--accent-green);margin-bottom:4px;">流水线式</p>
+            <p style="font-size:13px;color:var(--text-secondary);">固定顺序 A→B→C<br>适合标准化流程</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 总结页 ==================== -->
+  <div class="slide" data-index="9" style="padding: 50px 60px;">
+    <h2 style="font-size:34px; margin-bottom:32px; text-align:center;">
+      <span style="background:var(--gradient-3);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+        课程总结 —— 你学到了什么
+      </span>
+    </h2>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-icon" style="background:var(--gradient-1);">📋</div>
+        <h4>State</h4>
+        <p>共享数据容器<br>TypedDict 定义结构<br>Annotated 追加模式</p>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon" style="background:var(--gradient-2);">⚙️</div>
+        <h4>Node</h4>
+        <p>Python 函数<br>读取 State<br>返回更新字段</p>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon" style="background:var(--gradient-4);">🔗</div>
+        <h4>Edge</h4>
+        <p>普通边 / 条件边<br>定义执行顺序<br>路由函数决策</p>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon" style="background:var(--gradient-5);">🛠️</div>
+        <h4>Tool</h4>
+        <p>@tool 装饰器<br>bind_tools 绑定<br>ToolMessage 返回</p>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon" style="background:var(--gradient-3);">🔄</div>
+        <h4>Agentic Loop</h4>
+        <p>思考 → 行动 → 循环<br>AI Agent 核心模式<br>条件边实现循环</p>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon" style="background:var(--gradient-6);">💾</div>
+        <h4>Memory</h4>
+        <p>Checkpointer 检查点<br>thread_id 线程隔离<br>自动历史管理</p>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon" style="background:var(--gradient-7);">⏸️</div>
+        <h4>HITL</h4>
+        <p>interrupt_before 暂停<br>get_state 审核<br>update_state 拒绝</p>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon" style="background:var(--gradient-8);">👥</div>
+        <h4>Multi-Agent</h4>
+        <p>主管模式调度<br>共享状态协作<br>迭代改进质量</p>
+      </div>
+    </div>
+    <p style="text-align:center; margin-top:32px; font-size:16px; color:var(--text-secondary);">
+      恭喜你完成了全部课程！现在去动手写代码吧 🚀
+    </p>
+  </div>
+
+</div>
+
+<!-- ============ 导航栏 ============ -->
+<div class="nav-bar">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">&larr; 上一页</button>
+  <div class="nav-progress" id="navDots"></div>
+  <span class="page-num" id="pageNum">1 / 10</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">下一页 &rarr;</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  // 初始化导航圆点
+  const dotsContainer = document.getElementById('navDots');
+  for (let i = 0; i < total; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    dot.onclick = () => goTo(i);
+    dotsContainer.appendChild(dot);
+  }
+
+  function goTo(index) {
+    if (index < 0 || index >= total || index === current) return;
+    const dir = index > current ? 1 : -1;
+    slides[current].classList.remove('active');
+    slides[current].classList.add(dir > 0 ? 'prev' : '');
+    slides[current].style.transform = dir > 0 ? 'translateX(-60px)' : 'translateX(60px)';
+    current = index;
+    slides[current].classList.remove('prev');
+    slides[current].classList.add('active');
+    updateNav();
+  }
+
+  function go(dir) { goTo(current + dir); }
+
+  function updateNav() {
+    document.getElementById('pageNum').textContent = `${current + 1} / ${total}`;
+    document.getElementById('prevBtn').disabled = current === 0;
+    document.getElementById('nextBtn').disabled = current === total - 1;
+    document.querySelectorAll('.nav-dot').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+    });
+  }
+
+  // 键盘导航
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    if (e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+  });
+
+  // 触摸滑动
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) go(diff > 0 ? 1 : -1);
+  });
+
+  updateNav();
+</script>
+</body>
+</html>
