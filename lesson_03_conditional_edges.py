@@ -261,3 +261,191 @@ if __name__ == "__main__":
        - 循环回退逻辑（不满意就重试）
        - 任何工作流中的 if/else 决策
     """)
+
+    # ========================================================
+    # 进阶部分：条件边的高级用法
+    # ========================================================
+    print()
+    print("=" * 60)
+    print("进阶部分：条件边的高级用法")
+    print("=" * 60)
+
+    # ========================================================
+    # 进阶 1：path_map —— 路由映射表
+    # ========================================================
+    print("""
+    ★ 进阶 1：path_map —— 让路由函数返回值更灵活
+
+    默认情况下，路由函数返回的字符串必须是节点名称。
+    但有时路由函数返回的是"分类标签"而非节点名称。
+    path_map 可以做映射转换。
+
+    ─────────────────────────────────────────
+    def classify(state):
+        # 返回的是分类标签，不是节点名称
+        return "tech"  # 而不是 "technical_support"
+
+    graph.add_conditional_edges(
+        "classify",
+        classify,
+        path_map={                          # 映射表
+            "tech": "technical_support",    # "tech" → 去 technical_support 节点
+            "bill": "billing_support",      # "bill" → 去 billing_support 节点
+            "other": "general_support",     # "other" → 去 general_support 节点
+        }
+    )
+    ─────────────────────────────────────────
+
+    path_map 的好处：
+    • 路由函数可以返回简短的标签（解耦路由逻辑和节点命名）
+    • 多个路由值可以映射到同一个节点
+    • 让代码更清晰、维护更方便
+    """)
+
+    # ========================================================
+    # 进阶 2：用 LLM 做智能路由
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 2：用 LLM 做智能路由（替代关键词匹配）")
+    print("=" * 60)
+    print("""
+    本课示例用关键词匹配做分类，但实际项目中通常用 LLM。
+    LLM 能理解语义，而不仅仅是匹配关键词。
+
+    方法 1：用结构化输出（推荐）
+    ─────────────────────────────────────────
+    from pydantic import BaseModel, Field
+
+    class RouteDecision(BaseModel):
+        \"\"\"路由决策\"\"\"
+        department: str = Field(
+            description="选择部门",
+            enum=["technical", "billing", "general"]
+        )
+        reason: str = Field(description="选择原因")
+
+    # LLM 结构化输出：保证返回有效的 JSON
+    structured_llm = llm.with_structured_output(RouteDecision)
+
+    def llm_classify(state):
+        result = structured_llm.invoke(
+            f"将以下问题分类到合适的部门：{state['query']}"
+        )
+        return {"category": result.department}
+    ─────────────────────────────────────────
+
+    方法 2：直接用 LLM 返回标签
+    ─────────────────────────────────────────
+    def llm_route(state):
+        response = llm.invoke(
+            f"将问题分类，只返回一个词："
+            f"technical/billing/general\\n"
+            f"问题：{state['query']}"
+        )
+        return response.content.strip().lower()
+    ─────────────────────────────────────────
+
+    方法 1（结构化输出）更可靠，因为 LLM 被限制只能返回
+    预定义的选项，不会出现意外的返回值。
+    """)
+
+    # ========================================================
+    # 进阶 3：多条件组合 —— 复杂路由逻辑
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 3：复杂路由模式")
+    print("=" * 60)
+    print("""
+    实际项目中的路由逻辑可能很复杂。以下是常见模式：
+
+    模式 1：多级路由（串联条件边）
+    ─────────────────────────────────────────
+    [起点] → [一级分类] → [技术] → [二级分类] → [前端/后端/数据库]
+                        → [账单] → [终点]
+                        → [通用] → [终点]
+    ─────────────────────────────────────────
+
+    模式 2：条件边 + END（提前退出）
+    ─────────────────────────────────────────
+    def route(state):
+        if state["score"] < 30:
+            return END              # 分数太低，直接终止
+        elif state["score"] < 70:
+            return "review"         # 需要进一步审核
+        else:
+            return "auto_approve"   # 自动通过
+
+    graph.add_conditional_edges("score_check", route)
+    ─────────────────────────────────────────
+
+    模式 3：循环条件（迭代改进）
+    ─────────────────────────────────────────
+    def should_retry(state):
+        if state["quality"] >= 0.8:
+            return END             # 质量达标，结束
+        if state["attempts"] >= 3:
+            return END             # 尝试够了，结束
+        return "improve"           # 继续改进
+
+    graph.add_conditional_edges("evaluate", should_retry)
+    graph.add_edge("improve", "evaluate")  # 循环
+    ─────────────────────────────────────────
+
+    这个"循环条件"模式在第四课（智能体循环）中会深入学习。
+    """)
+
+    # ========================================================
+    # 进阶 4：条件边的调试技巧
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 4：条件边的调试技巧")
+    print("=" * 60)
+    print()
+
+    # 用 stream() 查看实际路由路径
+    print("  使用 stream() 追踪路由路径：")
+    print()
+
+    test_query = "My computer keeps crashing"
+    for step in graph.stream({
+        "query": test_query,
+        "category": "",
+        "response": ""
+    }):
+        for node_name in step:
+            print(f"    → 经过节点: {node_name}")
+
+    print()
+    print("  其他调试技巧：")
+    print("    1. 在路由函数中添加 print() 打印决策过程")
+    print("    2. 用 graph.get_graph().draw_mermaid() 可视化图结构")
+    print("    3. 用 stream() 逐步追踪执行路径")
+    print("    4. 确保路由函数返回的字符串与节点名称完全匹配")
+    print()
+
+    # ========================================================
+    # 进阶总结
+    # ========================================================
+    print("=" * 60)
+    print("进阶要点总结：")
+    print("=" * 60)
+    print("""
+    1. path_map 路由映射
+       - 解耦路由标签和节点名称
+       - 让路由函数更灵活、代码更清晰
+
+    2. LLM 智能路由
+       - 用 with_structured_output() 保证输出格式
+       - 比关键词匹配更智能、更鲁棒
+       - 实际项目的首选方案
+
+    3. 复杂路由模式
+       - 多级路由、提前退出、循环条件
+       - 条件边 + END = 提前终止
+       - 条件边 + 循环 = 迭代改进
+
+    4. 调试技巧
+       - stream() 追踪路由路径
+       - Mermaid 可视化图结构
+       - 路由函数中添加日志
+    """)

@@ -364,7 +364,7 @@
   <div class="slide cover active" data-index="0">
     <div class="logo">🦜</div>
     <h1>LangGraph 从零开始</h1>
-    <p class="subtitle">7 节课掌握 AI 智能体开发的核心技能</p>
+    <p class="subtitle">7 节课 + 进阶内容 + 实战项目，掌握 AI 智能体开发核心技能</p>
     <div class="tag-row">
       <span class="tag">State 状态</span>
       <span class="tag">Node 节点</span>
@@ -373,6 +373,8 @@
       <span class="tag">Memory 记忆</span>
       <span class="tag">Agent 智能体</span>
       <span class="tag">Multi-Agent 多智能体</span>
+      <span class="tag" style="background:rgba(255,171,64,0.12);color:var(--accent-orange);border-color:rgba(255,171,64,0.25);">SubGraph 子图</span>
+      <span class="tag" style="background:rgba(105,240,174,0.12);color:var(--accent-green);border-color:rgba(105,240,174,0.25);">实战项目</span>
     </div>
   </div>
 
@@ -462,8 +464,31 @@ graph.add_edge(<span class="str">"add_emoji"</span>, <span class="type">END</spa
           <div class="flow-node" style="background:#546e7a;">END</div>
         </div>
         <p style="text-align:center; margin-top:8px; font-size:14px; color:var(--text-secondary);">
-          .compile() 编译 &rarr; .invoke() 运行
+          .compile() 编译 &rarr; .invoke() 运行 | .stream() 逐步输出
         </p>
+      </div>
+      <div class="card full-width">
+        <h3><span class="icon">🔬</span> 进阶：Reducer 与可视化</h3>
+        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:8px;">
+          <div style="flex:1; min-width:240px;">
+            <p style="color:var(--text-secondary); font-size:14px; line-height:1.8;">
+              <span class="hl-orange">Reducer</span> 控制 State 字段如何合并：<br>
+              &bull; 默认：覆盖模式（last-write-wins）<br>
+              &bull; <code>Annotated[list, add_messages]</code>：追加模式<br>
+              &bull; <code>Annotated[int, operator.add]</code>：累加模式<br>
+              &bull; 自定义函数：<code>def reducer(old, new)</code>
+            </p>
+          </div>
+          <div style="flex:1; min-width:240px;">
+            <p style="color:var(--text-secondary); font-size:14px; line-height:1.8;">
+              <span class="hl-cyan">图可视化</span> 帮助调试：<br>
+              &bull; <code>graph.get_graph().draw_mermaid()</code><br>
+              &bull; 生成 Mermaid 流程图代码<br>
+              &bull; 在 mermaid.live 在线查看<br>
+              &bull; 也可导出 PNG 图片
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -504,18 +529,20 @@ llm = <span class="fn">ChatOpenAI</span>(
     <span class="kw">return</span> {<span class="str">"messages"</span>: [response]}</div>
       </div>
       <div class="card full-width">
-        <h3><span class="icon">💬</span> 消息类型</h3>
+        <h3><span class="icon">💬</span> 消息类型与进阶技巧</h3>
         <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:8px;">
           <div style="flex:1; min-width:200px;">
             <p><span class="hl-green">HumanMessage</span> — 用户发的消息</p>
             <p><span class="hl-blue">AIMessage</span> — AI 的回复</p>
             <p><span class="hl-orange">ToolMessage</span> — 工具执行结果（第四课学）</p>
+            <p><span class="hl-pink">SystemMessage</span> — 设定 AI 的角色人设</p>
           </div>
           <div style="flex:1; min-width:200px;">
             <p style="color:var(--text-secondary); font-size: 14px; line-height: 1.8;">
-              LLM 通过消息类型区分"谁说了什么"<br>
-              消息越多 = 上下文越丰富（也越费钱）<br>
-              对话历史是 LLM "记忆"的来源
+              <span class="hl-cyan">stream()</span> 逐步输出每个节点的结果<br>
+              <span class="hl-yellow">SystemMessage</span> 控制回复风格/语言/格式<br>
+              <span class="hl-orange">RemoveMessage</span> 管理历史长度控制成本<br>
+              Token 消耗随对话轮数线性增长
             </p>
           </div>
         </div>
@@ -568,7 +595,7 @@ llm = <span class="fn">ChatOpenAI</span>(
         </p>
       </div>
       <div class="card full-width">
-        <h3><span class="icon">💡</span> 适用场景</h3>
+        <h3><span class="icon">💡</span> 适用场景与进阶技巧</h3>
         <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:12px; margin-top:8px;">
           <div style="text-align:center;padding:12px;background:rgba(79,195,247,0.06);border-radius:10px;">
             <div style="font-size:28px;margin-bottom:6px;">🔄</div>
@@ -585,6 +612,14 @@ llm = <span class="fn">ChatOpenAI</span>(
           <div style="text-align:center;padding:12px;background:rgba(255,171,64,0.06);border-radius:10px;">
             <div style="font-size:28px;margin-bottom:6px;">⚖️</div>
             <p style="font-size:13px;color:var(--text-secondary);">任何 if/else 决策</p>
+          </div>
+        </div>
+        <div style="margin-top:14px; display:flex; gap:12px;">
+          <div style="flex:1; padding:10px 14px; background:rgba(79,195,247,0.06); border-radius:10px; border-left: 3px solid var(--accent-blue);">
+            <p style="font-size:13px; color:var(--text-secondary);"><span class="hl-blue">path_map</span> 解耦路由标签与节点名称</p>
+          </div>
+          <div style="flex:1; padding:10px 14px; background:rgba(179,136,255,0.06); border-radius:10px; border-left: 3px solid var(--accent-purple);">
+            <p style="font-size:13px; color:var(--text-secondary);"><span class="hl-purple">LLM 路由</span> 用 with_structured_output 智能分类</p>
           </div>
         </div>
       </div>
@@ -631,7 +666,7 @@ llm_with_tools = llm.<span class="fn">bind_tools</span>([add, multiply])</div>
         </div>
       </div>
       <div class="card full-width">
-        <h3><span class="icon">📖</span> 执行过程示例</h3>
+        <h3><span class="icon">📖</span> 执行过程与健壮性</h3>
         <div style="display:flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top:10px;">
           <div style="flex:1; min-width: 200px;">
             <p style="font-size:14px; line-height: 2; color:var(--text-secondary);">
@@ -640,9 +675,13 @@ llm_with_tools = llm.<span class="fn">bind_tools</span>([add, multiply])</div>
               <span class="hl-green">第 3 轮：</span>LLM 说 "答案是 32" &rarr; 到达终点
             </p>
           </div>
-          <div style="flex:1; min-width: 200px; text-align: center;">
-            <p style="font-size:18px; font-weight:700; margin-bottom: 6px; background: var(--gradient-5); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">这就是所有 AI Agent 的基础</p>
-            <p style="font-size:13px; color:var(--text-secondary);">ChatGPT 插件、Claude 工具调用、<br>所有能搜索/计算/操作的 AI 助手</p>
+          <div style="flex:1; min-width: 200px;">
+            <p style="font-size:14px; line-height:1.8; color:var(--text-secondary);">
+              <span class="hl-orange">并行工具</span> LLM 可同时调用多个工具<br>
+              <span class="hl-pink">错误处理</span> 返回错误信息而非抛异常<br>
+              <span class="hl-cyan">recursion_limit</span> 防止无限循环<br>
+              <span class="hl-yellow">create_react_agent</span> 预构建快捷方式
+            </p>
           </div>
         </div>
       </div>
@@ -677,7 +716,7 @@ config_b = {<span class="str">"configurable"</span>: {<span class="str">"thread_
 graph.<span class="fn">invoke</span>(msg, config=config_b)</div>
       </div>
       <div class="card full-width">
-        <h3><span class="icon">🏭</span> 生产环境持久化选择</h3>
+        <h3><span class="icon">🏭</span> 持久化选择与高级功能</h3>
         <div style="display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-top:12px;">
           <div style="text-align:center; padding:16px; background:rgba(255,171,64,0.06); border-radius:12px; border: 1px solid rgba(255,171,64,0.15);">
             <div style="font-size:28px; margin-bottom:8px;">🧪</div>
@@ -693,6 +732,14 @@ graph.<span class="fn">invoke</span>(msg, config=config_b)</div>
             <div style="font-size:28px; margin-bottom:8px;">🐘</div>
             <p style="font-weight:700; margin-bottom:4px; color:var(--accent-green);">PostgresSaver</p>
             <p style="font-size:13px; color:var(--text-secondary);">存在 PostgreSQL<br>多服务器部署<br>生产推荐</p>
+          </div>
+        </div>
+        <div style="margin-top:14px; display:flex; gap:12px;">
+          <div style="flex:1; padding:10px 14px; background:rgba(255,215,64,0.06); border-radius:10px; border-left: 3px solid var(--accent-yellow);">
+            <p style="font-size:13px; color:var(--text-secondary);"><span class="hl-yellow">时间旅行</span> get_state_history() 回溯任意历史状态</p>
+          </div>
+          <div style="flex:1; padding:10px 14px; background:rgba(0,229,255,0.06); border-radius:10px; border-left: 3px solid var(--accent-cyan);">
+            <p style="font-size:13px; color:var(--text-secondary);"><span class="hl-cyan">update_state()</span> 手动修改已保存的状态</p>
           </div>
         </div>
       </div>
@@ -744,13 +791,24 @@ graph.<span class="fn">invoke</span>(<span class="type">None</span>, config=conf
         </div>
       </div>
       <div class="card full-width">
-        <h3><span class="icon">🎯</span> 典型应用场景</h3>
+        <h3><span class="icon">🎯</span> 应用场景与高级模式</h3>
         <div style="display:flex; gap:20px; flex-wrap: wrap; margin-top:10px;">
           <span class="tag" style="background:rgba(244,143,177,0.12);color:var(--accent-pink);border-color:rgba(244,143,177,0.25);">📧 发送邮件审批</span>
           <span class="tag" style="background:rgba(105,240,174,0.12);color:var(--accent-green);border-color:rgba(105,240,174,0.25);">💳 付款确认</span>
           <span class="tag" style="background:rgba(79,195,247,0.12);color:var(--accent-blue);border-color:rgba(79,195,247,0.25);">🗄️ 数据库写入审核</span>
           <span class="tag" style="background:rgba(255,171,64,0.12);color:var(--accent-orange);border-color:rgba(255,171,64,0.25);">📄 内容发布审核</span>
           <span class="tag" style="background:rgba(179,136,255,0.12);color:var(--accent-purple);border-color:rgba(179,136,255,0.25);">🔒 合规审计</span>
+        </div>
+        <div style="margin-top:14px; display:grid; grid-template-columns: repeat(3,1fr); gap:10px;">
+          <div style="padding:10px 14px; background:rgba(0,229,255,0.06); border-radius:10px; border-left: 3px solid var(--accent-cyan);">
+            <p style="font-size:13px; color:var(--text-secondary);"><span class="hl-cyan">interrupt_after</span><br>执行后暂停审核结果</p>
+          </div>
+          <div style="padding:10px 14px; background:rgba(255,215,64,0.06); border-radius:10px; border-left: 3px solid var(--accent-yellow);">
+            <p style="font-size:13px; color:var(--text-secondary);"><span class="hl-yellow">NodeInterrupt</span><br>运行时动态决定是否暂停</p>
+          </div>
+          <div style="padding:10px 14px; background:rgba(105,240,174,0.06); border-radius:10px; border-left: 3px solid var(--accent-green);">
+            <p style="font-size:13px; color:var(--text-secondary);"><span class="hl-green">修改决策</span><br>不止批准/拒绝，可改参数</p>
+          </div>
         </div>
       </div>
     </div>
@@ -798,7 +856,7 @@ graph.<span class="fn">invoke</span>(<span class="type">None</span>, config=conf
         </p>
       </div>
       <div class="card full-width">
-        <h3><span class="icon">🧩</span> 三种多智能体模式</h3>
+        <h3><span class="icon">🧩</span> 多智能体模式与进阶</h3>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:12px;">
           <div style="padding:16px;background:rgba(79,195,247,0.06);border-radius:12px;text-align:center;">
             <p style="font-size:28px;margin-bottom:8px;">🏢</p>
@@ -816,12 +874,196 @@ graph.<span class="fn">invoke</span>(<span class="type">None</span>, config=conf
             <p style="font-size:13px;color:var(--text-secondary);">固定顺序 A→B→C<br>适合标准化流程</p>
           </div>
         </div>
+        <div style="margin-top:14px; display:flex; gap:12px;">
+          <div style="flex:1; padding:10px 14px; background:rgba(255,171,64,0.06); border-radius:10px; border-left: 3px solid var(--accent-orange);">
+            <p style="font-size:13px; color:var(--text-secondary);"><span class="hl-orange">SubGraph 子图</span> 把复杂系统模块化拆分</p>
+          </div>
+          <div style="flex:1; padding:10px 14px; background:rgba(244,143,177,0.06); border-radius:10px; border-left: 3px solid var(--accent-pink);">
+            <p style="font-size:13px; color:var(--text-secondary);"><span class="hl-pink">Map-Reduce</span> Send() 并行分发 + 汇总</p>
+          </div>
+          <div style="flex:1; padding:10px 14px; background:rgba(0,229,255,0.06); border-radius:10px; border-left: 3px solid var(--accent-cyan);">
+            <p style="font-size:13px; color:var(--text-secondary);"><span class="hl-cyan">LLM 主管</span> structured_output 智能调度</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 高级模式与最佳实践 ==================== -->
+  <div class="slide lesson-slide" data-index="9" style="padding-top:40px;">
+    <div class="lesson-header">
+      <div class="lesson-num" style="background:linear-gradient(135deg, #ff6b6b 0%, #ffa726 100%);">+</div>
+      <h2>高级模式与最佳实践</h2>
+    </div>
+    <div class="lesson-body">
+      <div class="card">
+        <h3><span class="icon">🛡️</span> <span class="hl-orange">健壮性模式</span></h3>
+        <div class="code-block" style="margin-top:10px; font-size:12.5px;">
+<span class="cmt"># 1. 最大迭代保护</span>
+config = {<span class="str">"recursion_limit"</span>: <span class="str">10</span>}
+
+<span class="cmt"># 2. 工具错误处理</span>
+<span class="kw">try</span>:
+    result = tool.<span class="fn">invoke</span>(args)
+<span class="kw">except</span> Exception <span class="kw">as</span> e:
+    result = <span class="str">f"Error: {e}"</span>  <span class="cmt"># 返回错误,不抛异常</span>
+
+<span class="cmt"># 3. 动态中断</span>
+<span class="kw">from</span> langgraph.errors <span class="kw">import</span> <span class="type">NodeInterrupt</span>
+<span class="kw">if</span> is_dangerous(action):
+    <span class="kw">raise</span> <span class="type">NodeInterrupt</span>(<span class="str">"需要审批"</span>)</div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">⚡</span> <span class="hl-cyan">性能优化</span></h3>
+        <div style="margin-top:8px;">
+          <table class="concept-table" style="font-size:13px;">
+            <tr><th>策略</th><th>方法</th></tr>
+            <tr><td>Token 控制</td><td>限制历史长度 / RemoveMessage 删除旧消息</td></tr>
+            <tr><td>模型选择</td><td>简单任务用 mini / 复杂任务用 gpt-4o</td></tr>
+            <tr><td>并行工具</td><td>LLM 同时调用多个工具减少轮次</td></tr>
+            <tr><td>检查点清理</td><td>定期删除旧快照 / 设置 TTL</td></tr>
+            <tr><td>子图封装</td><td>复杂流程拆分为独立模块</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🏗️</span> <span class="hl-green">架构决策指南</span></h3>
+        <div style="margin-top:8px; font-size:14px; color:var(--text-secondary); line-height:1.8;">
+          <p><span class="hl-blue">简单任务</span> &rarr; 单 Agent + 工具（第4课）</p>
+          <p><span class="hl-purple">需要审批</span> &rarr; + HITL 暂停点（第6课）</p>
+          <p><span class="hl-orange">多步协作</span> &rarr; 主管模式多 Agent（第7课）</p>
+          <p><span class="hl-green">大型系统</span> &rarr; SubGraph 模块化 + Map-Reduce</p>
+          <p><span class="hl-pink">生产部署</span> &rarr; PostgresSaver + 日志监控</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🧪</span> <span class="hl-purple">结构化输出</span></h3>
+        <div class="code-block" style="margin-top:10px; font-size:12.5px;">
+<span class="kw">from</span> pydantic <span class="kw">import</span> <span class="type">BaseModel</span>, <span class="type">Field</span>
+
+<span class="kw">class</span> <span class="type">Decision</span>(<span class="type">BaseModel</span>):
+    action: <span class="type">str</span> = <span class="fn">Field</span>(enum=[<span class="str">"approve"</span>,<span class="str">"reject"</span>])
+    reason: <span class="type">str</span>
+
+<span class="cmt"># 保证 LLM 返回有效 JSON</span>
+structured = llm.<span class="fn">with_structured_output</span>(<span class="type">Decision</span>)
+result = structured.<span class="fn">invoke</span>(<span class="str">"审核这个请求"</span>)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 实战项目展示 ==================== -->
+  <div class="slide lesson-slide" data-index="10" style="padding-top:40px;">
+    <div class="lesson-header">
+      <div class="lesson-num" style="background:linear-gradient(135deg, #667eea 0%, #00f2fe 100%);">🚀</div>
+      <h2>实战项目：AI 招聘助手</h2>
+    </div>
+    <div class="lesson-body">
+      <div class="card full-width">
+        <h3><span class="icon">🏭</span> <span class="hl-blue">全流程招聘管线</span></h3>
+        <div class="flow-diagram" style="margin-top:8px; gap:2px;">
+          <div class="flow-node" style="background:#5c6bc0; font-size:12px; padding:10px 14px;">简历解析</div>
+          <span class="flow-arrow" style="font-size:18px;">&rarr;</span>
+          <div class="flow-node" style="background:#7e57c2; font-size:12px; padding:10px 14px;">初筛评分</div>
+          <span class="flow-arrow" style="font-size:18px;">&rarr;</span>
+          <div class="flow-node" style="background:#e53935; font-size:12px; padding:10px 14px;">⏸️ HR 审核</div>
+          <span class="flow-arrow" style="font-size:18px;">&rarr;</span>
+          <div class="flow-node" style="background:#00897b; font-size:12px; padding:10px 14px;">面试题生成</div>
+          <span class="flow-arrow" style="font-size:18px;">&rarr;</span>
+          <div class="flow-node" style="background:#e53935; font-size:12px; padding:10px 14px;">⏸️ 面试</div>
+          <span class="flow-arrow" style="font-size:18px;">&rarr;</span>
+          <div class="flow-node" style="background:#43a047; font-size:12px; padding:10px 14px;">评估推荐</div>
+          <span class="flow-arrow" style="font-size:18px;">&rarr;</span>
+          <div class="flow-node" style="background:#e53935; font-size:12px; padding:10px 14px;">⏸️ 报告</div>
+        </div>
+        <p style="text-align:center; margin-top:8px; color:var(--text-secondary); font-size:13px;">
+          综合运用第 4-7 课全部核心概念：5 个 LLM 节点 + 3 个 HITL 暂停点 + 条件路由
+        </p>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🔧</span> <span class="hl-green">技术架构</span></h3>
+        <div style="margin-top:8px; font-size:14px; color:var(--text-secondary); line-height:2;">
+          <p><span class="hl-blue">后端</span> LangGraph + FastAPI + SSE 实时推送</p>
+          <p><span class="hl-purple">持久化</span> MemorySaver（可升级 PostgreSQL）</p>
+          <p><span class="hl-green">前端</span> 单文件 SPA，暗色主题</p>
+          <p><span class="hl-orange">LLM</span> 8 个专业节点，各有系统提示词</p>
+          <p><span class="hl-pink">部署</span> uvicorn + CORS + 静态文件服务</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🎯</span> <span class="hl-orange">核心设计要点</span></h3>
+        <div style="margin-top:8px; font-size:14px; color:var(--text-secondary); line-height:2;">
+          <p><span class="hl-cyan">Gate 节点</span> 条件边必须放在 gate 之后</p>
+          <p><span class="hl-yellow">SSE 事件总线</span> 实时推送节点完成/暂停</p>
+          <p><span class="hl-pink">条件路由</span> HR 拒绝 → 跳过后续直接出报告</p>
+          <p><span class="hl-green">JSON 解析</span> LLM 输出 → strip markdown → parse</p>
+          <p><span class="hl-purple">API 设计</span> start/resume/stream/state/report</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 调试与可视化 ==================== -->
+  <div class="slide lesson-slide" data-index="11" style="padding-top:40px;">
+    <div class="lesson-header">
+      <div class="lesson-num" style="background:linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">🔍</div>
+      <h2>调试与可视化技巧</h2>
+    </div>
+    <div class="lesson-body">
+      <div class="card">
+        <h3><span class="icon">📊</span> <span class="hl-green">图可视化</span></h3>
+        <div class="code-block" style="margin-top:10px; font-size:12.5px;">
+<span class="cmt"># Mermaid 流程图（在线查看）</span>
+<span class="kw">print</span>(graph.<span class="fn">get_graph</span>().<span class="fn">draw_mermaid</span>())
+<span class="cmt"># 粘贴到 https://mermaid.live</span>
+
+<span class="cmt"># 直接生成 PNG 图片</span>
+png = graph.<span class="fn">get_graph</span>().<span class="fn">draw_mermaid_png</span>()
+<span class="kw">with</span> <span class="fn">open</span>(<span class="str">"graph.png"</span>, <span class="str">"wb"</span>) <span class="kw">as</span> f:
+    f.write(png)</div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🔄</span> <span class="hl-blue">stream() 实时追踪</span></h3>
+        <div class="code-block" style="margin-top:10px; font-size:12.5px;">
+<span class="cmt"># 逐步查看每个节点的执行</span>
+<span class="kw">for</span> step <span class="kw">in</span> graph.<span class="fn">stream</span>(input):
+    <span class="kw">for</span> node, output <span class="kw">in</span> step.items():
+        <span class="kw">print</span>(<span class="str">f"→ {node}: {output}"</span>)
+
+<span class="cmt"># 常见调试模式：在节点中加日志</span>
+<span class="kw">def</span> <span class="fn">my_node</span>(state):
+    <span class="kw">print</span>(<span class="str">f"输入: {state}"</span>)
+    result = process(state)
+    <span class="kw">print</span>(<span class="str">f"输出: {result}"</span>)
+    <span class="kw">return</span> result</div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">⏱️</span> <span class="hl-purple">状态检查</span></h3>
+        <div class="code-block" style="margin-top:10px; font-size:12.5px;">
+<span class="cmt"># 查看当前状态</span>
+state = graph.<span class="fn">get_state</span>(config)
+<span class="kw">print</span>(state.values)  <span class="cmt"># 所有字段</span>
+<span class="kw">print</span>(state.next)    <span class="cmt"># 下一个节点</span>
+
+<span class="cmt"># 查看历史快照</span>
+<span class="kw">for</span> s <span class="kw">in</span> graph.<span class="fn">get_state_history</span>(config):
+    <span class="kw">print</span>(s.metadata[<span class="str">"step"</span>], s.next)</div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🐛</span> <span class="hl-orange">常见问题排查</span></h3>
+        <div style="margin-top:8px; font-size:14px; color:var(--text-secondary); line-height:2;">
+          <p><span class="hl-pink">无限循环</span> → 加 recursion_limit + 迭代计数器</p>
+          <p><span class="hl-blue">路由错误</span> → 打印路由函数返回值 + 检查节点名</p>
+          <p><span class="hl-green">状态丢失</span> → 检查 Reducer / 确认用了 checkpointer</p>
+          <p><span class="hl-orange">工具异常</span> → try-except 返回错误信息</p>
+          <p><span class="hl-cyan">Token 超限</span> → RemoveMessage 裁剪历史</p>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- ==================== 总结页 ==================== -->
-  <div class="slide" data-index="9" style="padding: 50px 60px;">
+  <div class="slide" data-index="12" style="padding: 50px 60px;">
     <h2 style="font-size:34px; margin-bottom:32px; text-align:center;">
       <span style="background:var(--gradient-3);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
         课程总结 —— 你学到了什么
@@ -870,7 +1112,7 @@ graph.<span class="fn">invoke</span>(<span class="type">None</span>, config=conf
       </div>
     </div>
     <p style="text-align:center; margin-top:32px; font-size:16px; color:var(--text-secondary);">
-      恭喜你完成了全部课程！现在去动手写代码吧 🚀
+      恭喜你完成了全部课程！每课都包含基础 + 进阶两个层次。现在去动手写代码吧 🚀
     </p>
   </div>
 
@@ -880,7 +1122,7 @@ graph.<span class="fn">invoke</span>(<span class="type">None</span>, config=conf
 <div class="nav-bar">
   <button class="nav-btn" id="prevBtn" onclick="go(-1)">&larr; 上一页</button>
   <div class="nav-progress" id="navDots"></div>
-  <span class="page-num" id="pageNum">1 / 10</span>
+  <span class="page-num" id="pageNum">1 / 13</span>
   <button class="nav-btn" id="nextBtn" onclick="go(1)">下一页 &rarr;</button>
 </div>
 

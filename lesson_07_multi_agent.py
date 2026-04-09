@@ -365,3 +365,209 @@ if __name__ == "__main__":
        - 对等式：智能体之间直接对话
        - 流水线式：固定顺序 A → B → C
     """)
+
+    # ========================================================
+    # 进阶部分：多智能体的高级模式
+    # ========================================================
+    print()
+    print("=" * 60)
+    print("进阶部分：多智能体的高级模式")
+    print("=" * 60)
+
+    # ========================================================
+    # 进阶 1：用 LLM 驱动主管决策
+    # ========================================================
+    print("""
+    ★ 进阶 1：LLM 驱动的主管（替代规则引擎）
+
+    本课用 if/else 规则作为主管的决策逻辑，但实际项目中
+    通常用 LLM 做更智能的决策。
+
+    ─────────────────────────────────────────
+    from pydantic import BaseModel, Field
+
+    class SupervisorDecision(BaseModel):
+        next_agent: str = Field(
+            description="下一个工作的智能体",
+            enum=["researcher", "writer", "reviewer", "FINISH"]
+        )
+        reason: str = Field(description="决策原因")
+
+    structured_llm = llm.with_structured_output(SupervisorDecision)
+
+    def llm_supervisor(state):
+        decision = structured_llm.invoke([
+            SystemMessage(content=(
+                "你是团队主管。分析当前进度，决定下一步。\\n"
+                f"任务: {state['task']}\\n"
+                f"调研结果: {state.get('research', '无')}\\n"
+                f"初稿: {state.get('draft', '无')}\\n"
+                f"审核: {state.get('review', '无')}\\n"
+                f"已迭代: {state.get('iteration', 0)} 轮\\n"
+                "选择下一个智能体或 FINISH。"
+            )),
+        ])
+        return {
+            "next_agent": decision.next_agent,
+            "iteration": state.get("iteration", 0) + 1,
+        }
+    ─────────────────────────────────────────
+
+    LLM 主管 vs 规则主管：
+    • 规则主管：确定性强，可预测，适合标准化流程
+    • LLM 主管：更灵活，能处理意外情况，但成本更高
+    • 混合模式：LLM 做决策，规则做兜底（推荐）
+    """)
+
+    # ========================================================
+    # 进阶 2：子图（SubGraph）—— 图的模块化
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 2：子图（SubGraph）—— 把复杂系统拆分为模块")
+    print("=" * 60)
+    print("""
+    当系统变得复杂时，可以把一组相关节点封装为"子图"。
+    子图就像是一个独立的小型图，可以嵌入到主图中。
+
+    ─────────────────────────────────────────
+    # 定义子图：研究团队（独立的小型图）
+    research_builder = StateGraph(ResearchState)
+    research_builder.add_node("search", search_node)
+    research_builder.add_node("summarize", summarize_node)
+    research_builder.add_edge(START, "search")
+    research_builder.add_edge("search", "summarize")
+    research_builder.add_edge("summarize", END)
+    research_subgraph = research_builder.compile()
+
+    # 在主图中使用子图（当作一个节点）
+    main_builder = StateGraph(MainState)
+    main_builder.add_node("research", research_subgraph)
+    main_builder.add_node("write", writer_node)
+    main_builder.add_edge(START, "research")
+    main_builder.add_edge("research", "write")
+    main_builder.add_edge("write", END)
+    ─────────────────────────────────────────
+
+    子图的好处：
+    1. 模块化：每个子图可以独立开发和测试
+    2. 封装性：子图内部的复杂度对主图透明
+    3. 复用性：同一个子图可以在多个主图中使用
+    4. 团队协作：不同团队负责不同子图
+
+    注意事项：
+    • 子图有自己的 State，需要和主图的 State 兼容
+    • 子图可以有自己的检查点（嵌套检查点）
+    • 子图中的错误默认会冒泡到主图
+    """)
+
+    # ========================================================
+    # 进阶 3：Map-Reduce 模式
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 3：Map-Reduce 模式 —— 并行处理然后汇总")
+    print("=" * 60)
+    print("""
+    有时你需要让多个智能体同时处理不同的子任务，
+    然后汇总结果。这就是 Map-Reduce 模式。
+
+    示例：同时调研多个主题
+    ─────────────────────────────────────────
+    # Map 阶段：并行调研
+    [主管] → [研究员A: 调研技术趋势]  ──┐
+           → [研究员B: 调研市场数据]  ──┼→ [汇总] → [写手]
+           → [研究员C: 调研竞品分析]  ──┘
+
+    # LangGraph 中用 Send() 实现并行分发
+    from langgraph.constants import Send
+
+    def supervisor_map(state):
+        topics = ["技术趋势", "市场数据", "竞品分析"]
+        return [
+            Send("researcher", {"topic": t})
+            for t in topics
+        ]
+
+    graph.add_conditional_edges("supervisor", supervisor_map)
+    ─────────────────────────────────────────
+
+    Map-Reduce 适合：
+    • 大任务可以拆成独立的小任务
+    • 小任务之间没有依赖关系
+    • 最终结果需要汇总所有小任务的产出
+    """)
+
+    # ========================================================
+    # 进阶 4：多智能体的错误处理与监控
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 4：多智能体的错误处理与监控")
+    print("=" * 60)
+    print("""
+    多智能体系统比单智能体更复杂，需要更健壮的错误处理。
+
+    1. 单个智能体失败的处理：
+    ─────────────────────────────────────────
+    def safe_researcher(state):
+        try:
+            return researcher(state)
+        except Exception as e:
+            # 记录错误，返回降级结果
+            return {
+                "research": f"调研失败: {e}",
+                "messages": [AIMessage(
+                    content=f"[研究员] 调研遇到问题: {e}"
+                )],
+            }
+    ─────────────────────────────────────────
+
+    2. 全局超时保护：
+    ─────────────────────────────────────────
+    result = graph.invoke(
+        initial_state,
+        config={"recursion_limit": 20}  # 最多 20 步
+    )
+    ─────────────────────────────────────────
+
+    3. 日志与可观测性：
+    ─────────────────────────────────────────
+    # 用 stream() 实时监控每个智能体的工作
+    for step in graph.stream(initial_state):
+        for node_name, output in step.items():
+            log(f"[{timestamp}] {node_name} completed")
+            metrics.track("agent_execution", node_name)
+    ─────────────────────────────────────────
+
+    4. 成本控制：
+    • 设置每个智能体的 max_tokens
+    • 用便宜模型处理简单任务，贵模型处理复杂任务
+    • 监控每轮迭代的 Token 消耗
+    """)
+
+    # ========================================================
+    # 进阶总结
+    # ========================================================
+    print("=" * 60)
+    print("进阶要点总结：")
+    print("=" * 60)
+    print("""
+    1. LLM 驱动的主管
+       - 用结构化输出保证决策格式
+       - 比规则引擎更灵活、更智能
+       - 推荐 LLM + 规则兜底的混合模式
+
+    2. 子图（SubGraph）
+       - 把复杂系统拆分为独立模块
+       - 可以独立开发、测试、复用
+       - 子图有自己的 State 和检查点
+
+    3. Map-Reduce 模式
+       - Send() 实现并行任务分发
+       - 适合可并行的独立子任务
+       - 最后汇总所有结果
+
+    4. 错误处理与监控
+       - 每个智能体节点 try-except 包裹
+       - recursion_limit 全局超时保护
+       - stream() 实时监控执行过程
+       - 不同复杂度的任务用不同的模型
+    """)

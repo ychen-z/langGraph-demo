@@ -393,3 +393,186 @@ if __name__ == "__main__":
        - Claude 的工具调用？同样的模式
        - 任何能搜索/计算/操作的 AI 助手都是这个模式
     """)
+
+    # ========================================================
+    # 进阶部分：构建更健壮的智能体
+    # ========================================================
+    print()
+    print("=" * 60)
+    print("进阶部分：构建更健壮的智能体")
+    print("=" * 60)
+
+    # ========================================================
+    # 进阶 1：并行工具调用
+    # ========================================================
+    print("""
+    ★ 进阶 1：并行工具调用（Parallel Tool Calls）
+
+    LLM 可以在一次回复中请求调用多个工具！例如：
+    用户："北京和上海今天天气怎么样？"
+    LLM 会同时请求 get_weather("Beijing") 和 get_weather("Shanghai")
+
+    我们的 run_tools 节点已经支持这一点——它遍历所有 tool_calls。
+    """)
+
+    print("--- 测试并行工具调用 ---")
+    print()
+
+    result = graph.invoke({
+        "messages": [HumanMessage(
+            content="What's the weather in Beijing and Tokyo? Also what is 10 + 20?"
+        )]
+    })
+    print(f"\n  最终答案: {result['messages'][-1].content}")
+    print()
+
+    # ========================================================
+    # 进阶 2：工具错误处理
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 2：工具错误处理 —— 让智能体更健壮")
+    print("=" * 60)
+    print("""
+    工具可能会失败（网络错误、参数错误、API 限流等）。
+    一个健壮的智能体需要优雅地处理这些错误。
+
+    策略 1：在工具函数中 try-except
+    ─────────────────────────────────────────
+    @tool
+    def search_api(query: str) -> str:
+        \"\"\"Search for information\"\"\"
+        try:
+            result = call_external_api(query)
+            return result
+        except Exception as e:
+            # 返回错误信息而不是抛出异常
+            # LLM 看到错误后可能会换个方式重试
+            return f"Error: {str(e)}. Please try a different query."
+    ─────────────────────────────────────────
+
+    策略 2：在 run_tools 节点中统一处理
+    ─────────────────────────────────────────
+    def run_tools_safe(state):
+        results = []
+        for tool_call in state["messages"][-1].tool_calls:
+            try:
+                result = tool_map[tool_call["name"]].invoke(tool_call["args"])
+            except Exception as e:
+                result = f"Tool error: {e}"
+            results.append(ToolMessage(
+                content=str(result),
+                tool_call_id=tool_call["id"],
+            ))
+        return {"messages": results}
+    ─────────────────────────────────────────
+
+    关键原则：永远不要让工具抛出未处理的异常！
+    把错误信息作为 ToolMessage 返回给 LLM，让 LLM 决定下一步。
+    """)
+
+    # ========================================================
+    # 进阶 3：最大迭代保护 —— 防止无限循环
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 3：最大迭代保护（Max Iterations Guard）")
+    print("=" * 60)
+    print("""
+    智能体循环理论上可能永远不会停止！
+    例如，LLM 不断调用工具但从不给出最终答案。
+
+    解决方案：添加迭代计数器
+
+    方法 1：在 State 中跟踪迭代次数
+    ─────────────────────────────────────────
+    from operator import add
+
+    class SafeAgentState(TypedDict):
+        messages: Annotated[list, add_messages]
+        tool_call_count: Annotated[int, add]  # 累加模式
+
+    MAX_ITERATIONS = 5
+
+    def safe_agent(state):
+        if state.get("tool_call_count", 0) >= MAX_ITERATIONS:
+            # 强制结束：注入一条消息告诉用户
+            return {"messages": [AIMessage(
+                content="抱歉，我尝试了多次但无法完成任务。"
+            )]}
+        response = llm_with_tools.invoke(state["messages"])
+        count = 1 if response.tool_calls else 0
+        return {"messages": [response], "tool_call_count": count}
+    ─────────────────────────────────────────
+
+    方法 2：使用 LangGraph 内置的 recursion_limit
+    ─────────────────────────────────────────
+    # 在 invoke 时设置最大递归（步骤）次数
+    result = graph.invoke(
+        {"messages": [HumanMessage(content="...")]},
+        config={"recursion_limit": 10}  # 最多执行 10 步
+    )
+    ─────────────────────────────────────────
+
+    方法 2 更简单，但方法 1 更灵活（可以只限制工具调用次数）。
+    """)
+
+    # ========================================================
+    # 进阶 4：使用 LangGraph 预构建的 ReAct Agent
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 4：LangGraph 预构建的 create_react_agent")
+    print("=" * 60)
+    print("""
+    本课我们手动构建了 ReAct Agent，以便理解底层原理。
+    但 LangGraph 提供了一个预构建的快捷方式：
+
+    ─────────────────────────────────────────
+    from langgraph.prebuilt import create_react_agent
+
+    # 一行代码创建完整的 ReAct Agent！
+    agent = create_react_agent(llm, tools)
+
+    # 直接使用
+    result = agent.invoke({
+        "messages": [HumanMessage(content="What is 3+5?")]
+    })
+    ─────────────────────────────────────────
+
+    create_react_agent 内部做了和我们一样的事情：
+    1. 创建 agent 节点和 tools 节点
+    2. 添加条件边（should_use_tools 路由）
+    3. 添加 tools → agent 的循环边
+    4. 编译图
+
+    什么时候用预构建 vs 手动构建？
+    • 预构建：适合快速原型开发、简单场景
+    • 手动构建：需要自定义节点逻辑、复杂的错误处理、
+      额外的中间节点（如日志记录、人类审批）
+    """)
+
+    # ========================================================
+    # 进阶总结
+    # ========================================================
+    print("=" * 60)
+    print("进阶要点总结：")
+    print("=" * 60)
+    print("""
+    1. 并行工具调用
+       - LLM 可以同时请求多个工具
+       - run_tools 节点遍历所有 tool_calls 即可支持
+       - 更高效地处理多信息需求
+
+    2. 工具错误处理
+       - 永远不要让工具抛出未处理异常
+       - 把错误信息作为 ToolMessage 返回给 LLM
+       - LLM 可以根据错误信息决定重试或换方法
+
+    3. 最大迭代保护
+       - config={"recursion_limit": N} 限制总步骤数
+       - State 中的计数器可以更精细地控制
+       - 生产环境必须设置，防止成本失控
+
+    4. create_react_agent
+       - LangGraph 的预构建快捷方式
+       - 适合快速原型，不适合复杂定制
+       - 理解底层原理后再用预构建更好
+    """)

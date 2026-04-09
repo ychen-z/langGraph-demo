@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>招聘助手 - AI 全流程招聘分析</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a14;--card:#12122a;--card2:#1a1a35;
+  --accent:#4fc3f7;--green:#69f0ae;--orange:#ffab40;--red:#ef5350;--purple:#b388ff;--pink:#f48fb1;--cyan:#00e5ff;
+  --text:#e8eaf6;--text2:#7e84a8;--border:rgba(255,255,255,.06);
+  --radius:14px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.bg-deco{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.bg-deco .orb{position:absolute;border-radius:50%;filter:blur(100px);opacity:.06}
+.orb-1{width:600px;height:600px;background:#667eea;top:-200px;right:-100px}
+.orb-2{width:500px;height:500px;background:#f093fb;bottom:-200px;left:-100px}
+.container{max-width:900px;margin:0 auto;padding:32px 20px 100px}
+.header{text-align:center;margin-bottom:40px}
+.header h1{font-size:32px;font-weight:800;background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+.header p{color:var(--text2);font-size:14px}
+
+/* 进度条 */
+.progress-bar{display:flex;align-items:center;justify-content:center;gap:3px;margin-bottom:32px;flex-wrap:wrap}
+.progress-step{display:flex;align-items:center;gap:3px}
+.progress-dot{width:28px;height:28px;border-radius:50%;background:var(--card2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--text2);transition:all .4s ease;flex-shrink:0}
+.progress-dot.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 16px rgba(79,195,247,.3);animation:glow 1.5s ease-in-out infinite alternate}
+.progress-dot.done{background:var(--accent);border-color:var(--accent);color:#000}
+.progress-dot.rejected{background:var(--red);border-color:var(--red);color:#fff}
+.progress-arrow{color:var(--text2);font-size:12px;opacity:.4}
+@keyframes glow{from{box-shadow:0 0 8px rgba(79,195,247,.2)}to{box-shadow:0 0 20px rgba(79,195,247,.5)}}
+
+/* 事件日志 */
+.event-log{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:24px;overflow:hidden;max-height:180px;transition:max-height .3s}
+.event-log.collapsed{max-height:44px}
+.event-log-header{padding:12px 16px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;display:flex;justify-content:space-between}
+.event-log-body{padding:0 16px 12px;max-height:120px;overflow-y:auto}
+.event-item{font-size:12px;color:var(--text2);padding:3px 0;display:flex;gap:8px;animation:slideIn .3s ease}
+.event-item .time{color:var(--accent);font-family:monospace;flex-shrink:0}
+.event-item .msg{color:var(--text)}
+@keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+
+/* 卡片 */
+.card{background:var(--card);border-radius:var(--radius);padding:28px;border:1px solid var(--border);margin-bottom:20px;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.card h2{font-size:18px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.badge{padding:3px 12px;border-radius:8px;font-size:11px;font-weight:700;color:#000}
+.badge-blue{background:var(--accent)}.badge-green{background:var(--green)}.badge-orange{background:var(--orange)}.badge-red{background:var(--red)}.badge-purple{background:var(--purple)}.badge-cyan{background:var(--cyan)}
+
+label{display:block;font-size:13px;color:var(--text2);margin-bottom:5px;font-weight:500}
+textarea,input[type=text],select{width:100%;background:#080812;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;resize:vertical;font-family:inherit;transition:border-color .2s}
+textarea:focus,input:focus,select:focus{outline:none;border-color:var(--accent)}
+textarea{min-height:100px}
+select{cursor:pointer;appearance:auto}
+
+.btn{padding:10px 22px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#000}.btn-primary:hover{filter:brightness(1.15)}
+.btn-green{background:var(--green);color:#000}.btn-green:hover{filter:brightness(1.15)}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{filter:brightness(1.15)}
+.btn-orange{background:var(--orange);color:#000}.btn-orange:hover{filter:brightness(1.15)}
+.btn-ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border)}.btn-ghost:hover{background:rgba(255,255,255,.1)}
+.btn:disabled{opacity:.35;cursor:default;transform:none}
+.btn-row{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+
+/* 分数 */
+.score-ring{width:120px;height:120px;margin:16px auto;position:relative}
+.score-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.score-ring circle{fill:none;stroke-width:8;stroke-linecap:round}
+.score-ring .bg{stroke:rgba(255,255,255,.06)}
+.score-ring .fg{transition:stroke-dashoffset 1.5s ease}
+.score-value{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:36px;font-weight:800}
+.score-label{font-size:12px;color:var(--text2);font-weight:400}
+
+/* 证据表 */
+.evidence-list{margin:12px 0}
+.evidence-item{background:var(--card2);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--border);font-size:13px;line-height:1.7}
+.evidence-item .status{font-size:16px;margin-right:6px}
+.evidence-item .req{font-weight:700;color:var(--text)}
+.evidence-item .cite{color:var(--accent);font-style:italic}
+.evidence-item .cmt{color:var(--text2);margin-top:4px}
+
+/* 面试题 */
+.qa-item{background:var(--card2);border-radius:12px;padding:16px;margin-bottom:12px;border:1px solid var(--border)}
+.qa-item .q-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.qa-item .q-num{font-size:12px;font-weight:700;color:var(--accent)}
+.qa-item .q-tag{font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600}
+.qa-item .q-tag.ai{background:rgba(179,136,255,.12);color:var(--purple)}
+.qa-item .q-tag.custom{background:rgba(255,171,64,.12);color:var(--orange)}
+.qa-item .q-text{font-size:14px;font-weight:600;margin-bottom:4px;line-height:1.6}
+.qa-item .q-intent{font-size:12px;color:var(--text2);margin-bottom:4px}
+.qa-item .q-rubric{font-size:11px;color:var(--text2);background:rgba(0,0,0,.3);border-radius:8px;padding:8px 10px;margin-bottom:10px}
+.qa-item .q-rubric span{display:block;margin:2px 0}
+.qa-item textarea{min-height:60px;background:rgba(0,0,0,.3)}
+
+.add-question-box{background:var(--card2);border:1px dashed rgba(255,255,255,.12);border-radius:12px;padding:16px;margin-bottom:12px}
+.add-question-box input{margin-bottom:8px}
+
+.report-box{background:#060610;border-radius:12px;padding:24px;white-space:pre-wrap;font-size:14px;line-height:1.9;max-height:500px;overflow-y:auto;border:1px solid var(--border)}
+.info{color:var(--text2);font-size:14px;line-height:1.7;margin:10px 0}
+.info strong{color:var(--text)}
+.resume-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.resume-item{background:var(--card2);border-radius:10px;padding:12px;border:1px solid var(--border)}
+.resume-item dt{font-size:11px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.resume-item dd{font-size:14px}
+.hidden{display:none!important}
+.loader{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 路由标签 */
+.route-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700;margin:8px 4px 8px 0}
+.route-tag.onsite{background:rgba(105,240,174,.15);color:var(--green)}
+.route-tag.phone{background:rgba(79,195,247,.15);color:var(--accent)}
+.route-tag.reject{background:rgba(239,83,80,.15);color:var(--red)}
+.route-tag.need-info{background:rgba(255,171,64,.15);color:var(--orange)}
+
+/* Offer 卡片 */
+.offer-section{background:var(--card2);border-radius:12px;padding:16px;margin:12px 0;border:1px solid rgba(105,240,174,.15)}
+.offer-section h3{font-size:15px;color:var(--green);margin-bottom:10px}
+.offer-section li{font-size:13px;color:var(--text2);line-height:1.8;margin-left:16px}
+</style>
+</head>
+<body>
+<div class="bg-deco"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
+
+<div class="container">
+  <div class="header">
+    <h1>招聘助手</h1>
+    <p>基于 LangGraph 的全流程 AI 招聘分析系统 &middot; PRD 对齐 &middot; 4路分流 &middot; 多面试官</p>
+  </div>
+
+  <!-- 进度条（13 节点） -->
+  <div class="progress-bar hidden" id="progressBar">
+    <div class="progress-step"><div class="progress-dot" data-step="parse_jd" title="JD解析">JD</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="resume_parser" title="简历解析">CV</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="screener" title="筛选评分">筛</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="screening_gate" title="HR筛选审核">HR</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="interview_generator" title="面试题生成">题</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="interview_gate" title="HR面试审核">HR</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="evaluator" title="面试评估">评</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="collect_feedback" title="面试官反馈">反</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="merge_feedback" title="面评合并">合</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="advisor" title="录用建议">荐</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="decision_gate" title="最终决策">HR</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="offer_pack" title="Offer生成">OF</div></div><span class="progress-arrow">&rarr;</span>
+    <div class="progress-step"><div class="progress-dot" data-step="report_generator" title="报告生成">报</div></div>
+  </div>
+
+  <!-- 事件日志 -->
+  <div class="event-log hidden" id="eventLog">
+    <div class="event-log-header" onclick="this.parentElement.classList.toggle('collapsed')">
+      <span>实时日志</span><span>&#9662;</span>
+    </div>
+    <div class="event-log-body" id="logBody"></div>
+  </div>
+
+  <!-- ===== 输入卡片 ===== -->
+  <div class="card" id="stepInput">
+    <h2><span class="badge badge-blue">开始</span> 提交简历和岗位要求</h2>
+    <label>岗位要求 (JD)</label>
+    <textarea id="jdText" rows="5">高级Python后端工程师
+
+要求：
+- 5年以上Python开发经验
+- 熟悉FastAPI/Django等Web框架
+- 有微服务架构设计经验
+- 熟悉MySQL/PostgreSQL/Redis
+- 有AI/LLM相关项目经验优先
+- 良好的英文读写能力</textarea>
+    <label style="margin-top:14px">简历</label>
+    <textarea id="resumeText" rows="8">张三
+电话: 13800138000 | 邮箱: zhangsan@example.com
+
+技能: Python, FastAPI, Django, PostgreSQL, Redis, Docker, LangChain, OpenAI API
+
+工作经历:
+1. ABC科技有限公司 - 高级后端工程师 (2020-至今, 4年)
+   - 负责核心交易系统的设计和开发，日处理订单100万+
+   - 使用FastAPI重构了遗留系统，性能提升3倍
+   - 引入LangChain构建了内部知识库问答系统
+
+2. XYZ互联网公司 - Python开发工程师 (2017-2020, 3年)
+   - 参与电商平台后端开发
+   - 使用Django + Celery构建异步任务系统
+
+教育:
+- 北京大学 计算机科学与技术 硕士 (2015-2017)
+- 武汉大学 软件工程 学士 (2011-2015)</textarea>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnStart" onclick="startRecruitment()">开始分析</button>
+    </div>
+  </div>
+
+  <!-- ===== HITL #1: 筛选审核（4路分流）===== -->
+  <div class="card hidden" id="stepScreening">
+    <h2><span class="badge badge-orange">HITL #1</span> 筛选结果审核</h2>
+    <div class="score-ring" id="scoreRing">
+      <svg viewBox="0 0 120 120">
+        <circle class="bg" cx="60" cy="60" r="52"/>
+        <circle class="fg" cx="60" cy="60" r="52" id="scoreFg"
+                stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+      </svg>
+      <div class="score-value"><span id="scoreNum">0</span><span class="score-label">匹配分</span></div>
+    </div>
+    <p class="info"><strong>AI 分流建议：</strong><span id="routeTag"></span></p>
+    <p class="info" id="scoreReason"></p>
+    <!-- 证据引用 -->
+    <div id="evidenceList" class="evidence-list"></div>
+    <!-- 候选人信息 -->
+    <div class="resume-grid" id="resumeGrid"></div>
+    <label style="margin-top:12px">分流决定</label>
+    <select id="screenRouteSelect">
+      <option value="">使用 AI 建议</option>
+      <option value="onsite">直接现场面试 (onsite)</option>
+      <option value="phone_screen">电话面试 (phone_screen)</option>
+      <option value="need_more_info">需要补充信息</option>
+      <option value="reject">淘汰</option>
+    </select>
+    <label style="margin-top:10px">HR 备注（可选）</label>
+    <textarea id="screeningNotes" rows="2" placeholder="填写审核意见..."></textarea>
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="submitScreening('approved')">通过筛选</button>
+      <button class="btn btn-red" onclick="submitScreening('rejected')">淘汰</button>
+    </div>
+  </div>
+
+  <!-- ===== HITL #2: 面试审核 + 回答录入 ===== -->
+  <div class="card hidden" id="stepInterview">
+    <h2><span class="badge badge-purple">HITL #2</span> 面试题审核 & 回答录入</h2>
+    <p class="info">以下面试题含 <strong>评分标准（rubrics）</strong>。可追加自定义题目，然后录入候选人回答。</p>
+    <div id="qaList"></div>
+    <div class="add-question-box">
+      <label>追加自定义面试题</label>
+      <input type="text" id="newQuestionInput" placeholder="输入新的面试题..." />
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn btn-ghost" onclick="addCustomQuestion()">+ 添加面试题</button>
+      </div>
+    </div>
+    <label style="margin-top:8px">HR 备注（可选）</label>
+    <textarea id="interviewNotes" rows="2" placeholder="填写审核意见..."></textarea>
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="submitInterview('approved')">提交回答并继续评估</button>
+      <button class="btn btn-red" onclick="submitDecision('rejected')">终止面试</button>
+    </div>
+  </div>
+
+  <!-- ===== HITL #3: 面试官反馈收集 ===== -->
+  <div class="card hidden" id="stepFeedback">
+    <h2><span class="badge badge-cyan">HITL #3</span> 面试官反馈收集</h2>
+    <p class="info">等待面试官提交反馈。已提交 <strong id="feedbackCount">0</strong> 份反馈。可直接继续（将使用自动评估结果）。</p>
+    <div id="feedbackList"></div>
+    <div style="background:var(--card2);border-radius:12px;padding:16px;border:1px solid var(--border);margin:12px 0">
+      <label>面试官姓名</label>
+      <input type="text" id="fbInterviewer" placeholder="面试官姓名" />
+      <label style="margin-top:8px">总体评价</label>
+      <textarea id="fbOverall" rows="2" placeholder="总体评价..."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="submitFeedback()">提交反馈</button>
+      </div>
+    </div>
+    <label>HR 备注（可选）</label>
+    <textarea id="feedbackNotes" rows="2" placeholder="填写备注..."></textarea>
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="submitDecision('approved')">继续流程</button>
+      <button class="btn btn-red" onclick="submitDecision('rejected')">终止</button>
+    </div>
+  </div>
+
+  <!-- ===== HITL #4: 最终决策 ===== -->
+  <div class="card hidden" id="stepFinal">
+    <h2><span class="badge badge-green">HITL #4</span> 最终录用决策</h2>
+    <p class="info"><strong>AI 建议：</strong><span id="recText" style="color:var(--green);font-weight:700"></span></p>
+    <p class="info" id="recReason"></p>
+    <div id="mergedFeedbackInfo"></div>
+    <label>HR 备注（可选）</label>
+    <textarea id="finalNotes" rows="2" placeholder="填写最终意见..."></textarea>
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="submitDecision('offer')">发放 Offer</button>
+      <button class="btn btn-orange" onclick="submitDecision('continue')">待定/补面</button>
+      <button class="btn btn-red" onclick="submitDecision('rejected')">拒绝录用</button>
+    </div>
+  </div>
+
+  <!-- ===== 最终报告 ===== -->
+  <div class="card hidden" id="stepReport">
+    <h2><span class="badge badge-blue">完成</span> 招聘评估报告</h2>
+    <div id="offerInfo"></div>
+    <div class="report-box" id="reportContent"></div>
+    <div class="btn-row" style="margin-top:18px">
+      <button class="btn btn-primary" onclick="resetAll()">开始新的招聘</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api/recruitment';
+let sessionId = null, evtSource = null, currentPausedAt = '', allQuestions = [];
+
+const $ = id => document.getElementById(id);
+const show = id => $(id)?.classList.remove('hidden');
+const hide = id => $(id)?.classList.add('hidden');
+const hideAll = () => ['stepInput','stepScreening','stepInterview','stepFeedback','stepFinal','stepReport'].forEach(hide);
+
+function addLog(msg) {
+  show('eventLog');
+  const body = $('logBody');
+  const t = new Date().toLocaleTimeString('zh-CN',{hour12:false});
+  const div = document.createElement('div');
+  div.className = 'event-item';
+  div.innerHTML = `<span class="time">${t}</span><span class="msg">${msg}</span>`;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+}
+
+function setProgress(node, state) {
+  const dot = document.querySelector(`.progress-dot[data-step="${node}"]`);
+  if (dot) { dot.classList.remove('active','done','rejected'); if (state) dot.classList.add(state); }
+}
+function clearProgress() { document.querySelectorAll('.progress-dot').forEach(d => d.classList.remove('active','done','rejected')); }
+
+const ALL_NODES = ['parse_jd','resume_parser','screener','screening_gate','interview_generator',
+  'interview_gate','evaluator','collect_feedback','merge_feedback','advisor','decision_gate','offer_pack','report_generator'];
+
+// ========== SSE ==========
+function connectSSE() {
+  if (evtSource) evtSource.close();
+  evtSource = new EventSource(`${API}/${sessionId}/stream`);
+
+  evtSource.addEventListener('status', e => { const d = JSON.parse(e.data); addLog(d.message || `状态: ${d.status}`); });
+
+  evtSource.addEventListener('node_complete', e => {
+    const d = JSON.parse(e.data);
+    addLog(`\u2705 ${d.label} 完成`);
+    setProgress(d.node, 'done');
+    const idx = ALL_NODES.indexOf(d.node);
+    if (idx >= 0 && idx < ALL_NODES.length - 1) setProgress(ALL_NODES[idx + 1], 'active');
+  });
+
+  evtSource.addEventListener('paused', e => {
+    const d = JSON.parse(e.data);
+    currentPausedAt = d.paused_at;
+    addLog(`\u23F8\uFE0F 等待 HR 审核 (${d.paused_at})`);
+    setProgress(d.paused_at, 'active');
+    if (d.paused_at === 'screening_gate') showScreening(d);
+    else if (d.paused_at === 'interview_gate') showInterview(d);
+    else if (d.paused_at === 'collect_feedback') showFeedbackCollect(d);
+    else if (d.paused_at === 'decision_gate') showFinal(d);
+  });
+
+  evtSource.addEventListener('questions_updated', e => {
+    const d = JSON.parse(e.data);
+    allQuestions = d.interview_questions;
+    renderQuestions(allQuestions);
+    addLog(`\uD83D\uDCDD 面试题已更新，共 ${allQuestions.length} 道`);
+  });
+
+  evtSource.addEventListener('feedback_submitted', e => {
+    const d = JSON.parse(e.data);
+    addLog(`\uD83D\uDC64 ${d.interviewer} 的反馈已提交（共 ${d.feedback_count} 份）`);
+    $('feedbackCount').textContent = d.feedback_count;
+  });
+
+  evtSource.addEventListener('finished', e => {
+    const d = JSON.parse(e.data);
+    const isRejected = d.status === 'rejected';
+    addLog(isRejected ? '\u274C 候选人未通过' : '\uD83C\uDF89 招聘流程完成');
+    hideAll();
+
+    // Offer 信息展示
+    if (d.offer_package && d.offer_package.salary_suggestion) {
+      const op = d.offer_package;
+      $('offerInfo').innerHTML = `<div class="offer-section">
+        <h3>\uD83C\uDF89 Offer 信息</h3>
+        <p style="color:var(--text);font-size:14px;margin-bottom:8px"><strong>薪资建议：</strong>${op.salary_suggestion}</p>
+        ${op.offer_talking_points ? '<p style="font-size:13px;color:var(--text2);margin-bottom:4px">话术要点：</p><ul>'+op.offer_talking_points.map(p=>`<li>${p}</li>`).join('')+'</ul>':''}
+        ${op.onboarding_checklist ? '<p style="font-size:13px;color:var(--text2);margin:8px 0 4px">入职清单：</p><ul>'+op.onboarding_checklist.map(s=>`<li>${s}</li>`).join('')+'</ul>':''}
+      </div>`;
+    } else {
+      $('offerInfo').innerHTML = '';
+    }
+
+    $('reportContent').textContent = d.final_report || '';
+    show('stepReport');
+    if (isRejected) document.querySelectorAll('.progress-dot.active').forEach(d => d.classList.replace('active','rejected'));
+    evtSource.close();
+  });
+
+  evtSource.addEventListener('error', e => { try { const d = JSON.parse(e.data); addLog(`\u2757 错误: ${d.message}`); } catch(_) {} });
+  evtSource.onerror = () => {};
+}
+
+// ========== 启动 ==========
+async function startRecruitment() {
+  const jd = $('jdText').value.trim(), resume = $('resumeText').value.trim();
+  if (!jd || !resume) return alert('请填写岗位要求和简历');
+  $('btnStart').disabled = true;
+  $('btnStart').innerHTML = '<span class="loader"></span> 启动中...';
+  const res = await fetch(`${API}/start`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({jd_text:jd,resume_text:resume}) });
+  const data = await res.json();
+  sessionId = data.session_id;
+  hideAll(); show('progressBar'); clearProgress(); setProgress('parse_jd','active');
+  addLog('\uD83D\uDE80 招聘流程已启动');
+  connectSSE();
+}
+
+// ========== HITL #1: 筛选 ==========
+function showScreening(data) {
+  hideAll();
+  const score = data.score || 0;
+  const circumference = 326.7;
+  const fg = $('scoreFg');
+  const color = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--orange)' : 'var(--red)';
+  fg.style.stroke = color;
+  requestAnimationFrame(() => { fg.style.strokeDashoffset = circumference * (1 - score/100); });
+  $('scoreNum').textContent = score; $('scoreNum').style.color = color;
+
+  // AI 分流建议
+  const route = data.screen_route || 'phone_screen';
+  const routeMap = {onsite:'直接现场面试',phone_screen:'电话面试',reject:'淘汰',need_more_info:'需补充信息'};
+  const routeClass = route === 'onsite' ? 'onsite' : route === 'phone_screen' ? 'phone' : route === 'reject' ? 'reject' : 'need-info';
+  $('routeTag').innerHTML = `<span class="route-tag ${routeClass}">${routeMap[route]||route}</span>`;
+  $('screenRouteSelect').value = '';
+
+  $('scoreReason').innerHTML = `<strong>评分理由：</strong>${data.score_reason||''}`;
+
+  // 证据引用
+  const evidence = data.evidence || [];
+  $('evidenceList').innerHTML = evidence.map(e => `<div class="evidence-item">
+    <span class="status">${e.matched ? '\u2705' : '\u274C'}</span>
+    <span class="req">${e.requirement||''}</span>
+    <div class="cite">"${e.citation||''}"</div>
+    <div class="cmt">${e.comment||''}</div>
+  </div>`).join('');
+
+  const p = data.parsed_resume || {};
+  $('resumeGrid').innerHTML = `
+    <div class="resume-item"><dt>姓名</dt><dd>${p.name||'N/A'}</dd></div>
+    <div class="resume-item"><dt>技能</dt><dd>${(p.skills||[]).join(', ')}</dd></div>
+    <div class="resume-item"><dt>学历</dt><dd>${(p.education||[]).map(e=>e.school+' '+e.degree).join('; ')||'N/A'}</dd></div>
+    <div class="resume-item"><dt>摘要</dt><dd>${p.summary||'N/A'}</dd></div>`;
+  show('stepScreening');
+}
+
+async function submitScreening(decision) {
+  const notes = $('screeningNotes')?.value || '';
+  const screenRoute = $('screenRouteSelect')?.value || null;
+  hideAll(); addLog(`\uD83D\uDCE4 HR 筛选决定: ${decision}`);
+  setProgress(currentPausedAt, decision === 'rejected' ? 'rejected' : 'done');
+  await fetch(`${API}/${sessionId}/resume`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({decision, notes, screen_route: screenRoute}) });
+}
+
+// ========== HITL #2: 面试 ==========
+function showInterview(data) {
+  hideAll();
+  allQuestions = data.interview_questions || [];
+  renderQuestions(allQuestions);
+  show('stepInterview');
+}
+
+function renderQuestions(questions) {
+  $('qaList').innerHTML = questions.map((q, i) => {
+    const isDict = typeof q === 'object';
+    const qText = isDict ? q.question : q;
+    const intent = isDict ? (q.intent||'') : '';
+    const rubric = isDict ? (q.rubric||{}) : {};
+    const isCustom = isDict && q._custom;
+    return `<div class="qa-item">
+      <div class="q-header">
+        <span class="q-num">问题 ${i+1}</span>
+        <span class="q-tag ${isCustom?'custom':'ai'}">${isCustom?'HR自定义':'AI 生成'}</span>
+      </div>
+      <div class="q-text">${qText}</div>
+      ${intent ? `<div class="q-intent">考察意图：${intent}</div>` : ''}
+      ${rubric.excellent ? `<div class="q-rubric">
+        <span>\uD83C\uDFC6 优秀：${rubric.excellent}</span>
+        <span>\u2705 良好：${rubric.good||''}</span>
+        <span>\u26A0\uFE0F 不佳：${rubric.poor||''}</span>
+      </div>` : ''}
+      <textarea class="answer-input" placeholder="请输入候选人的回答..." rows="2"></textarea>
+    </div>`;
+  }).join('');
+}
+
+async function addCustomQuestion() {
+  const input = $('newQuestionInput');
+  const q = input.value.trim();
+  if (!q) return;
+  await fetch(`${API}/${sessionId}/questions`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({questions:[q]}) });
+  input.value = '';
+}
+
+async function submitInterview(decision) {
+  const inputs = document.querySelectorAll('.answer-input');
+  const answers = Array.from(inputs).map(el => el.value.trim() || '(未回答)');
+  addLog('\uD83D\uDCE4 提交面试回答...');
+  await fetch(`${API}/${sessionId}/answers`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({answers}) });
+  await submitDecision(decision);
+}
+
+// ========== HITL #3: 面试官反馈 ==========
+function showFeedbackCollect(data) {
+  hideAll();
+  const feedbacks = data.interviewer_feedbacks || [];
+  $('feedbackCount').textContent = feedbacks.length;
+  $('feedbackList').innerHTML = feedbacks.map(f => `<div class="evidence-item">
+    <strong>${f.interviewer}</strong>: ${f.overall}
+  </div>`).join('');
+  show('stepFeedback');
+}
+
+async function submitFeedback() {
+  const interviewer = $('fbInterviewer').value.trim();
+  const overall = $('fbOverall').value.trim();
+  if (!interviewer) return alert('请填写面试官姓名');
+  await fetch(`${API}/${sessionId}/feedback`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({interviewer, scores:[], overall: overall||'(无评价)'}) });
+  $('fbInterviewer').value = ''; $('fbOverall').value = '';
+}
+
+// ========== HITL #4: 最终决策 ==========
+function showFinal(data) {
+  hideAll();
+  $('recText').textContent = data.recommendation || '';
+  $('recReason').innerHTML = `<strong>理由：</strong>${data.recommendation_reason||''}`;
+
+  const merged = data.merged_feedback || {};
+  if (merged.summary) {
+    let html = `<div style="background:var(--card2);border-radius:12px;padding:14px;margin:10px 0;border:1px solid var(--border)">
+      <p style="font-size:13px;color:var(--text2)"><strong style="color:var(--text)">面评综合：</strong>${merged.summary}</p>`;
+    if (merged.strengths?.length) html += `<p style="font-size:12px;color:var(--green);margin-top:6px">优势：${merged.strengths.join('、')}</p>`;
+    if (merged.concerns?.length) html += `<p style="font-size:12px;color:var(--orange);margin-top:4px">顾虑：${merged.concerns.join('、')}</p>`;
+    html += '</div>';
+    $('mergedFeedbackInfo').innerHTML = html;
+  } else {
+    $('mergedFeedbackInfo').innerHTML = '';
+  }
+  show('stepFinal');
+}
+
+// ========== 通用提交 ==========
+async function submitDecision(decision) {
+  let notes = '';
+  if (currentPausedAt === 'screening_gate') notes = $('screeningNotes')?.value || '';
+  else if (currentPausedAt === 'interview_gate') notes = $('interviewNotes')?.value || '';
+  else if (currentPausedAt === 'collect_feedback') notes = $('feedbackNotes')?.value || '';
+  else if (currentPausedAt === 'decision_gate') notes = $('finalNotes')?.value || '';
+  hideAll(); addLog(`\uD83D\uDCE4 HR 决定: ${decision}`);
+  setProgress(currentPausedAt, decision === 'rejected' ? 'rejected' : 'done');
+  await fetch(`${API}/${sessionId}/resume`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({decision, notes}) });
+}
+
+// ========== 重置 ==========
+function resetAll() {
+  if (evtSource) evtSource.close();
+  sessionId = null; currentPausedAt = ''; allQuestions = [];
+  hideAll(); hide('progressBar'); hide('eventLog');
+  $('logBody').innerHTML = '';
+  $('btnStart').disabled = false; $('btnStart').innerHTML = '开始分析';
+  clearProgress(); show('stepInput');
+}
+</script>
+</body>
+</html>

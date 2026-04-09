@@ -246,3 +246,155 @@ if __name__ == "__main__":
        - .compile() 编译图，使其可以运行
        - .invoke(初始状态) 执行整个图，返回最终结果
     """)
+
+    # ========================================================
+    # 进阶部分：深入理解 LangGraph 的核心机制
+    # ========================================================
+    print()
+    print("=" * 60)
+    print("进阶部分：深入理解核心机制")
+    print("=" * 60)
+
+    # ========================================================
+    # 进阶 1：Reducer（归约器）—— State 更新的秘密
+    # ========================================================
+    print("""
+    ★ 进阶 1：Reducer（归约器）—— State 更新的底层机制
+
+    当节点返回 {"greeting": "新值"} 时，LangGraph 并不是简单赋值。
+    它使用"Reducer"函数来决定如何合并旧值和新值。
+
+    默认 Reducer：直接覆盖（last-write-wins）
+        旧值 "hello" + 新值 "world" → 最终 "world"
+
+    自定义 Reducer 示例：
+    ─────────────────────────────────────────
+    from typing import Annotated
+    from operator import add
+
+    class CounterState(TypedDict):
+        # 使用 operator.add 作为 Reducer → 累加模式
+        count: Annotated[int, add]
+
+    # 节点 A 返回 {"count": 1}
+    # 节点 B 返回 {"count": 2}
+    # 最终 count = 0 + 1 + 2 = 3（而不是被覆盖为 2）
+    ─────────────────────────────────────────
+
+    内置 Reducer:
+    • 默认（无 Annotated）：覆盖模式（最后写入的值生效）
+    • add_messages：追加消息到列表（第二课会深入学习）
+    • operator.add：数值累加 / 列表拼接
+    • 自定义函数：def my_reducer(old, new) -> merged
+    """)
+
+    # ========================================================
+    # 进阶 2：图的可视化 —— 用 Mermaid 查看图结构
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 2：图的可视化")
+    print("=" * 60)
+    print()
+
+    # LangGraph 支持将图导出为 Mermaid 格式，可以在 mermaid.live 在线查看
+    try:
+        mermaid_code = graph.get_graph().draw_mermaid()
+        print("  图的 Mermaid 代码（可在 https://mermaid.live 粘贴查看）：")
+        print()
+        for line in mermaid_code.split('\n'):
+            print(f"    {line}")
+        print()
+        print("  提示：你也可以用 draw_mermaid_png() 直接生成 PNG 图片")
+        print("  （需要安装 pip install pyppeteer）")
+    except Exception as e:
+        print(f"  图可视化需要 langgraph 0.2+：{e}")
+    print()
+
+    # ========================================================
+    # 进阶 3：节点返回的多种模式
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 3：节点返回值的多种模式")
+    print("=" * 60)
+    print("""
+    节点函数可以返回不同形式的值来更新 State：
+
+    模式 1：部分更新（最常用）
+    ─────────────────────────────────────────
+    def node(state):
+        return {"greeting": "新值"}   # 只更新 greeting
+    ─────────────────────────────────────────
+
+    模式 2：不更新任何字段
+    ─────────────────────────────────────────
+    def log_node(state):
+        print(f"当前状态: {state}")
+        return {}                     # 返回空字典 = 不修改任何字段
+    ─────────────────────────────────────────
+
+    模式 3：同时更新多个字段
+    ─────────────────────────────────────────
+    def process(state):
+        return {
+            "greeting": "处理完成",
+            "name": state["name"].upper(),  # 同时更新多个字段
+        }
+    ─────────────────────────────────────────
+
+    重要规则：
+    • 返回的字典中的 key 必须是 State 中已定义的字段
+    • 未返回的字段会保持原值不变
+    • 返回 None 或 {} 都是合法的（不修改任何字段）
+    """)
+
+    # ========================================================
+    # 进阶 4：图的执行模式 —— invoke vs stream
+    # ========================================================
+    print("=" * 60)
+    print("★ 进阶 4：invoke() vs stream() 两种执行模式")
+    print("=" * 60)
+    print()
+
+    print("  invoke() —— 一次性返回最终结果（已学）")
+    result = graph.invoke({"name": "小张", "greeting": ""})
+    print(f"  result = {result}")
+    print()
+
+    print("  stream() —— 逐步返回每个节点的输出（流式处理）")
+    print("  适合实时展示进度的场景：")
+    print()
+    for step in graph.stream({"name": "小李", "greeting": ""}):
+        # step 是一个字典：{节点名称: 该节点的返回值}
+        for node_name, node_output in step.items():
+            print(f"    节点 '{node_name}' 输出: {node_output}")
+    print()
+    print("  stream() 在后续课程中非常重要，尤其是智能体循环中")
+    print("  你可以实时看到每一步的执行结果，而不用等全部完成。")
+
+    # ========================================================
+    # 进阶总结
+    # ========================================================
+    print()
+    print("=" * 60)
+    print("进阶要点总结：")
+    print("=" * 60)
+    print("""
+    1. Reducer（归约器）
+       - 控制 State 字段如何合并旧值和新值
+       - 默认是覆盖模式，用 Annotated 可切换
+       - 常用：add_messages（追加消息）、operator.add（累加）
+
+    2. 图可视化
+       - graph.get_graph().draw_mermaid() 生成流程图代码
+       - 调试复杂图时非常有用
+       - 可以导出为 PNG 图片
+
+    3. 节点返回模式
+       - 部分更新、不更新、多字段更新
+       - 返回值的 key 必须匹配 State 定义
+
+    4. 两种执行模式
+       - invoke()：一次性获取最终结果
+       - stream()：逐步获取每个节点的输出
+       - stream() 在实时应用中更常用
+    """)
